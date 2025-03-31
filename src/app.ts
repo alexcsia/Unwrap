@@ -2,7 +2,8 @@ import express from 'express';
 import path from 'path';
 import './controllers/auth.controller';
 import authRoutes from './routes/auth.routes';
-import guardRoutes from './routes/guarded.routes';
+import guardRoutes from './routes/general.routes';
+import historyRoutes from './routes/history.routes';
 import expressSession from 'express-session';
 
 const app = express();
@@ -22,6 +23,7 @@ app.use(expressSession({
 
 app.use(authRoutes);
 app.use(guardRoutes)
+app.use(historyRoutes)
 
 app.get('/', (req, res) => {
   res.render('index');

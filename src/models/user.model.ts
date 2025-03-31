@@ -11,7 +11,7 @@ export const saveUser = async (
     refreshToken: string,
     profile: UserProfile
 ): Promise<any> => {
-    prisma.user.upsert({
+    let user = prisma.user.upsert({
         where: { spotifyId },
         update: {
             accessToken,
@@ -25,4 +25,5 @@ export const saveUser = async (
             refreshToken,
         }
     });
+    return user 
 };

@@ -2,11 +2,7 @@ import { fetchListeningHistory } from '../services/spotify.service';
 import { saveListeningHistory } from '../models/history.model';
 import type { Request, Response} from 'express';
 
-export const getListeningHistory = async (req: Request, res: Response) => {
-    if(!req.isAuthenticated()) return res.redirect("/");
-
-    const user: any = req.user;
-
+export const getListeningHistory = async (user: any) => {
     try {
         const history = await fetchListeningHistory(user);
         await Promise.all(
@@ -24,8 +20,12 @@ export const getListeningHistory = async (req: Request, res: Response) => {
                 )
             )
         );
-        res.render("history", history)
+        return history
     } catch {
 
     }
+}
+
+export const updateListeningHistory = async () => {
+
 }

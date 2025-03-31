@@ -10,8 +10,8 @@
     <ul>
     <% history.forEach(item => { %>
         <li>
-        <strong><%= item.track.name %></strong>
-        (Played at: <%= new Date(item.played_at).toLocaleString() %>)
+        <strong><%= item.trackName %></strong>
+        (Played at: <%= new Date(item.playedAt).toLocaleString() %>)
         </li>
     <% }) %>
     </ul>
