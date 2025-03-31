@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ListeningHistory {
+  id             String   @id @default(uuid())
+  userId         String   // References the User model
+  trackId        String   // Spotify track ID
+  playedAt       DateTime // Timestamp of when the track was played
+  trackName      String   // Name of the track
+  artistName     String   // Name of the artist
+  albumName      String   // Name of the album
+  durationMs     Int      // Duration of the track in milliseconds
+  source         String   // Indicates the source of the data (e.g., "spotify_api" or "manual_upload")
+  metadata       Json     // Additional metadata for non-overlapping fields
+  uploaded       DateTime @default(now())  // Date of upload of data
+
+  @@index([userId, playedAt]) // Index for efficient querying by user and playback time
+  @@unique([userId, trackId, playedAt, trackName, artistName, albumName, durationMs, source]) // Prevent duplicates
+}
+
+model User {
+  id          String @id @default(uuid())
+  spotifyId   String @unique
+  displayName String
+  email       String?
+  accessToken String
+  refreshToken String?
+}

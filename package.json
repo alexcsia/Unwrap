@@ -10,8 +10,16 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@prisma/client": "^6.5.0",
     "@types/express": "^5.0.1",
+    "@types/express-session": "^1.18.1",
+    "@types/passport": "^1.0.17",
+    "@types/passport-spotify": "^2.0.4",
     "ejs": "^3.1.10",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "passport": "^0.7.0",
+    "passport-spotify": "^2.0.0",
+    "prisma": "^6.5.0"
   }
 }
