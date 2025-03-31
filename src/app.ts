@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import './controllers/auth.controller';
 import authRoutes from './routes/auth.routes';
-import guardRoutes from './routes/general.routes';
+import generalRoutes from './routes/general.routes';
 import historyRoutes from './routes/history.routes';
 import expressSession from 'express-session';
 
@@ -21,13 +21,9 @@ app.use(expressSession({
   saveUninitialized: false,
 }))
 
-app.use(authRoutes);
-app.use(guardRoutes)
 app.use(historyRoutes)
-
-app.get('/', (req, res) => {
-  res.render('index');
-});
+app.use(authRoutes);
+app.use(generalRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
