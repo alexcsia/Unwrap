@@ -1,8 +1,7 @@
 import passport from 'passport';
 import { Strategy as SpotifyStrategy } from 'passport-spotify';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../utils/prisma.util';
+import { saveUser } from '../models/user.model'
 
 passport.use(
     new SpotifyStrategy(
@@ -15,20 +14,7 @@ passport.use(
             try {
                 const spotifyId = profile.id as string;
 
-                let user = await prisma.user.upsert({
-                    where: { spotifyId },
-                    update: {
-                        accessToken,
-                        refreshToken,
-                    },
-                    create : {
-                        spotifyId,
-                        displayName: profile.displayName,
-                        email: profile.emails?.[0]?.value || "",
-                        accessToken,
-                        refreshToken,
-                    }
-                });
+                let user = await saveUser( spotifyId, accessToken, refreshToken, profile );
 
                 return done(null, user);
             } catch (error) {

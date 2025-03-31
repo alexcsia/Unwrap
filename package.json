@@ -11,8 +11,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",
+    "@spotify/web-api-ts-sdk": "^1.2.0",
+    "@types/axios": "^0.14.4",
     "@types/express": "^5.0.1",
     "@types/express-session": "^1.18.1",
+    "@types/node": "^22.13.14",
     "@types/passport": "^1.0.17",
     "@types/passport-spotify": "^2.0.4",
     "ejs": "^3.1.10",
