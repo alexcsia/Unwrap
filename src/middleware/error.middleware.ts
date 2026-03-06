@@ -1,5 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "../errors/ApiError";
+const ERROR_MESSAGES: Record<string, string> = {
+  INVALID_UPLOAD: "Uploaded file is not valid",
+  NO_FILES_FOUND: "No data found in uploaded file",
+  DB_ERROR: "Failed to save listening history",
+  UNAUTHORIZED: "You are not authorized",
+  DEFAULT: "Internal server error",
+};
 
 export const errorMiddleware = (
   err: Error,
@@ -7,15 +14,21 @@ export const errorMiddleware = (
   res: Response,
   _next: NextFunction,
 ) => {
+  let statusCode = 500;
+  let code = "DEFAULT";
+
   if (err instanceof ApiError) {
-    return res.status(err.statusCode).json({
-      error: err.message,
-    });
+    statusCode = err.statusCode;
+    code = err.code;
+  } else {
+    console.error("Unexpected internal error:", err);
   }
 
-  console.error(err);
+  const safeMessage = ERROR_MESSAGES[code] || ERROR_MESSAGES.DEFAULT;
 
-  return res.status(500).json({
-    error: "Internal server error",
+  res.status(statusCode).json({
+    status: "error",
+    code,
+    message: safeMessage,
   });
 };
