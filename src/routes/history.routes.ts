@@ -1,26 +1,32 @@
-import express from 'express';
-import passport from 'passport';
-import multer from 'multer';
-import { getListeningHistory, processZipFile } from '../controllers/history.controller';
+import express from "express";
+import passport from "passport";
+import multer from "multer";
+import {
+  validateZipUpload,
+  prepareUploadPaths,
+} from "../middleware/upload.middleware";
+import { uploadHistoryController } from "../controllers/listening-history/uploadHistory.controller";
+import { getHistoryController } from "../controllers/listening-history/getHistory.controller";
+import { validatePlatform } from "../middleware/platform.middleware";
 
 const router = express.Router();
-const upload = multer({dest: "/uploads"})
+const upload = multer({ dest: "/uploads" });
 
-router.get("/history", passport.session(), async (req, res) => {
-    if(!req.isAuthenticated()) return res.redirect("/");
+router.get(
+  "/history/:platform/recent",
+  passport.session(),
+  validatePlatform,
+  getHistoryController,
+);
 
-    const user: any = req.user;
-    let history = await getListeningHistory(user)
-    res.render("history", { history: history })
-});
-
-router.get("/upload", (req, res) => {
-    res.render("upload");
-});
-
-router.post("/upload", upload.single("history"), passport.session(), (req, res, next) => {
-    console.log(`Recieved file ${req.file}`)
-    next()
-}, processZipFile);
+router.post(
+  "/history/:platform/upload",
+  passport.session(),
+  validatePlatform,
+  upload.single("history"),
+  validateZipUpload,
+  prepareUploadPaths,
+  uploadHistoryController,
+);
 
 export default router;
