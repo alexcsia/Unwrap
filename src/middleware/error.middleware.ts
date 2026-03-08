@@ -8,6 +8,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   DEFAULT: "Internal server error",
   MISSING_PLATFORM: "Platform parameter is missing",
   UNSUPPORTED_PLATFORM: "Unsupported platform",
+  SPOTIFY_API_ERROR: "Error while fetching Spotify API",
 };
 
 export const errorMiddleware = (
@@ -22,6 +23,8 @@ export const errorMiddleware = (
   if (err instanceof ApiError) {
     statusCode = err.statusCode;
     code = err.code;
+
+    console.error(`[${code}]`, err.message, err);
   } else {
     console.error("Unexpected internal error:", err);
   }
