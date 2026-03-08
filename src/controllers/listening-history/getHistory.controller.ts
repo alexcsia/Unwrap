@@ -1,4 +1,4 @@
-import { getHistoryService } from "../../services/listening-history/getHistory.service";
+import { getHistoryService } from "@/services/listening-history/getHistory.service";
 import type { Request, Response } from "express";
 
 export const getHistoryController = async (req: Request, res: Response) => {

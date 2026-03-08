@@ -4,10 +4,10 @@ import multer from "multer";
 import {
   validateZipUpload,
   prepareUploadPaths,
-} from "../middleware/upload.middleware";
-import { uploadHistoryController } from "../controllers/listening-history/uploadHistory.controller";
-import { getHistoryController } from "../controllers/listening-history/getHistory.controller";
-import { validatePlatform } from "../middleware/platform.middleware";
+} from "@/middleware/upload.middleware";
+import { uploadHistoryController } from "@/controllers/listening-history/uploadHistory.controller";
+import { getHistoryController } from "@/controllers/listening-history/getHistory.controller";
+import { validatePlatform } from "@/middleware/platform.middleware";
 
 const router = express.Router();
 const upload = multer({ dest: "/uploads" });

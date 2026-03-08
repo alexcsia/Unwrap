@@ -1,6 +1,6 @@
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
-import prisma from "../../../../../utils/prisma.util";
-import { ApiError } from "../../../../../errors/ApiError";
+import prisma from "@/utils/prisma.util";
+import { ApiError } from "@/errors/ApiError";
 
 interface SpotifyUser {
   id: string;

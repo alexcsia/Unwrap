@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { ApiError } from "../errors/ApiError";
+import { ApiError } from "@/errors/ApiError";
 const ERROR_MESSAGES: Record<string, string> = {
   INVALID_UPLOAD: "Uploaded file is not valid",
   NO_FILES_FOUND: "No data found in uploaded file",

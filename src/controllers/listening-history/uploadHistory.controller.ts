@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 
-import { uploadHistoryService } from "../../services/listening-history/uploadHistory.service";
+import { uploadHistoryService } from "@/services/listening-history/uploadHistory.service";
 export const uploadHistoryController = async (
   req: Request,
   res: Response,

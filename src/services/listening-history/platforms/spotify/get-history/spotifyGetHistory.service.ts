@@ -1,5 +1,5 @@
-import { fetchListeningHistory } from "./spotify.service";
-import { saveListeningHistory } from "../../../../../models/history.model";
+import { fetchListeningHistory } from "./spotifyApi";
+import { saveListeningHistory } from "@/models/history.model";
 
 export const spotifyGetHistoryHandler = async (user: any) => {
   const history = await fetchListeningHistory(user);

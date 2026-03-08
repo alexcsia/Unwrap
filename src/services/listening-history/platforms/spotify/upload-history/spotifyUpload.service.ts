@@ -2,7 +2,7 @@ import AdmZip from "adm-zip";
 import fs from "fs";
 import path from "path";
 import { processSpotifyEntries } from "./spotifyParser";
-import { ApiError } from "../../../../../errors/ApiError";
+import { ApiError } from "@/errors/ApiError";
 
 const SPOTIFY_HISTORY_FOLDER = "Spotify Extended Streaming History";
 

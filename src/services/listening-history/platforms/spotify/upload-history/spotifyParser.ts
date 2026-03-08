@@ -1,4 +1,4 @@
-import { saveListeningHistory } from "../../../../../models/history.model";
+import { saveListeningHistory } from "@/models/history.model";
 import { isValidListeningHistoryEntry } from "./validators";
 
 export const processSpotifyEntries = async (entries: any[], userId: string) => {

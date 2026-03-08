@@ -1,5 +1,5 @@
 import { uploadHandlers } from "./platformRegistry";
-import { ApiError } from "../../errors/ApiError";
+import { ApiError } from "@/errors/ApiError";
 
 export const uploadHistoryService = async (
   filePath: string,

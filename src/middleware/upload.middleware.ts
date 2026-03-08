@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { Request, Response, NextFunction } from "express";
-import { ApiError } from "../errors/ApiError";
+import { ApiError } from "@/errors/ApiError";
 
 export const validateZipUpload = (
   req: Request,
