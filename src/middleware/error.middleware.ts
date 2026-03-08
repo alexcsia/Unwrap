@@ -6,6 +6,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   DB_ERROR: "Failed to save listening history",
   UNAUTHORIZED: "You are not authorized",
   DEFAULT: "Internal server error",
+  MISSING_PLATFORM: "Platform parameter is missing",
+  UNSUPPORTED_PLATFORM: "Unsupported platform",
 };
 
 export const errorMiddleware = (
