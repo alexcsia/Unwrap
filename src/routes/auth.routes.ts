@@ -3,9 +3,6 @@ import passport from "passport";
 
 const router = express.Router();
 
-router.use(passport.initialize());
-router.use(passport.session());
-
 router.get(
   "/auth/spotify",
   passport.authenticate("spotify", {
