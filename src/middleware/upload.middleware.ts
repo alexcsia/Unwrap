@@ -9,12 +9,20 @@ export const validateZipUpload = (
   next: NextFunction,
 ) => {
   if (!req.file) {
-    throw new ApiError(400, "No file uploaded");
+    throw new ApiError(
+      400,
+      "NO_FILES_FOUND",
+      "No file found in the request body.",
+    );
   }
 
   if (!req.file.mimetype.includes("zip")) {
     fs.unlinkSync(req.file.path);
-    throw new ApiError(400, "Invalid zip file");
+    throw new ApiError(
+      400,
+      "INVALID_UPLOAD",
+      `Expected .zip, received ${req.file.mimetype}`,
+    );
   }
 
   next();
@@ -26,7 +34,11 @@ export const prepareUploadPaths = (
   next: NextFunction,
 ) => {
   if (!req.file?.path) {
-    throw new ApiError(400, "File path not found");
+    throw new ApiError(
+      500,
+      "INTERNAL_ERROR",
+      "Multer failed to provide a storage path for the uploaded file.",
+    );
   }
 
   // Attach paths to req for controller to use

@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
 const ERROR_MESSAGES: Record<string, string> = {
-  INVALID_UPLOAD: "Uploaded file is not valid",
-  NO_FILES_FOUND: "No data found in uploaded file",
+  INVALID_UPLOAD: "Uploaded file or folder is not valid",
+  NO_FILES_FOUND: "Please select a file to upload",
   DB_ERROR: "Failed to save listening history",
   UNAUTHORIZED: "You are not authorized",
   DEFAULT: "Internal server error",
