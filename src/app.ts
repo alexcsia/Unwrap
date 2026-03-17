@@ -10,6 +10,20 @@ import passport from "passport";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+if (
+  process.env.NODE_ENV === "development" &&
+  process.env.MOCK_SPOTIFY === "true"
+) {
+  import("@/mocks/server")
+    .then(({ server }) => {
+      server.listen();
+      console.log("Mocking Spotify API");
+    })
+    .catch((err) => {
+      console.error("Failed to start MSW server:", err);
+    });
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
