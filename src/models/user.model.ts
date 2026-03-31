@@ -1,29 +1,45 @@
 import prisma from "@/utils/prisma.util";
 
 interface UserProfile {
+  id: string;
   displayName: string;
   emails?: { value: string }[];
 }
 
-export const saveUser = async (
+//move connectSpotify to separate connectSpotify model
+export const connectSpotify = async (
+  userId: string,
   spotifyId: string,
   accessToken: string,
   refreshToken: string,
   profile: UserProfile,
-): Promise<any> => {
-  let user = prisma.user.upsert({
-    where: { spotifyId },
+) => {
+  await prisma.connectedPlatforms.upsert({
+    where: {
+      userId_platformName: {
+        userId: userId,
+        platformName: "spotify",
+      },
+    },
     update: {
-      accessToken,
-      refreshToken,
+      platformUserId: spotifyId,
+      AccessToken: accessToken,
+      RefreshToken: refreshToken,
+      expiresAt: new Date(Date.now() + 3600 * 1000),
     },
     create: {
-      spotifyId,
-      displayName: profile.displayName,
-      email: profile.emails?.[0]?.value || "",
-      accessToken,
-      refreshToken,
+      userId,
+      platformName: "spotify",
+      platformUserId: spotifyId,
+      AccessToken: accessToken,
+      RefreshToken: refreshToken,
+      expiresAt: new Date(Date.now() + 3600 * 1000),
     },
   });
-  return user;
+};
+
+export const findUserByEmail = async (email: string) => {
+  return await prisma.user.findUnique({
+    where: { email: email },
+  });
 };
