@@ -1,7 +1,6 @@
 import passport from "passport";
 import { Strategy as SpotifyStrategy } from "passport-spotify";
-import prisma from "../utils/prisma.util";
-import { saveUser } from "../models/user.model";
+import { connectSpotify } from "@/models/user.model";
 
 passport.use(
   new SpotifyStrategy(
@@ -9,19 +8,25 @@ passport.use(
       clientID: process.env.SPOTIFY_CLIENT_ID!,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
       callbackURL: process.env.SPOTIFY_CALLBACK_URI!,
+      passReqToCallback: true,
     },
-    async (accessToken, refreshToken, expires_in, profile, done) => {
+    async (req, accessToken, refreshToken, expiresIn, profile, done) => {
       try {
+        if (!req.user) {
+          return done(new Error("Unauthorized: No session found"));
+        }
+        const userId = req.user.id;
         const spotifyId = profile.id as string;
 
-        let user = await saveUser(
+        await connectSpotify(
+          userId,
           spotifyId,
           accessToken,
           refreshToken,
           profile,
         );
 
-        return done(null, user);
+        return done(null, req.user);
       } catch (error) {
         console.error("Error during authentication:", error);
         return done(error as Error, undefined);
@@ -29,19 +34,3 @@ passport.use(
     },
   ),
 );
-
-passport.serializeUser((user: any, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: id as string },
-    });
-    done(null, user);
-  } catch (error) {
-    console.error("Error during deserialization:", error);
-    done(error, null);
-  }
-});
