@@ -5,5 +5,9 @@ declare namespace Express {
       extractedPath: string;
     };
     platform: string;
+    user?: User;
+  }
+  interface User {
+    id: string;
   }
 }
