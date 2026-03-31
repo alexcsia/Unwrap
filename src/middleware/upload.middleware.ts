@@ -36,7 +36,7 @@ export const prepareUploadPaths = (
   if (!req.file?.path) {
     throw new ApiError(
       500,
-      "INTERNAL_ERROR",
+      "DEFAULT",
       "Multer failed to provide a storage path for the uploaded file.",
     );
   }
