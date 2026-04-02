@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/utils/prisma.util";
 import bcrypt from "bcrypt";
 
-const prisma = new PrismaClient();
 const DEV_USER_ID = "1234";
 
 async function main() {

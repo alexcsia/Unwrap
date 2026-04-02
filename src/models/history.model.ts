@@ -1,7 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-//TODO: move this line elsewhere
-const prisma = new PrismaClient();
+import prisma from "@/utils/prisma.util";
 
 export const saveListeningHistory = async (
   userId: string,
