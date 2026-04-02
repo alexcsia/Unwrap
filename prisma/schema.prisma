@@ -8,27 +8,73 @@ datasource db {
 }
 
 model ListeningHistory {
-  id             String   @id @default(uuid())
-  userId         String   // References the User model
-  trackId        String   // Spotify track ID
-  playedAt       DateTime // Timestamp of when the track was played
-  trackName      String   // Name of the track
-  artistName     String   // Name of the artist
-  albumName      String   // Name of the album
-  durationMs     Int      // Duration of the track in milliseconds
-  source         String   // Indicates the source of the data (e.g., "spotify_api" or "manual_upload")
-  metadata       Json     // Additional metadata for non-overlapping fields
-  uploaded       DateTime @default(now())  // Date of upload of data
+  id              String   @id @default(uuid())
+  userId          String
+  platformName    String
+  platformTrackId String
+  playedAt        DateTime
+  trackName       String
+  albumName       String
+  durationMs      Int
+  source          String
+  metadata        Json
+  uploadedAt      DateTime @default(now())
 
-  @@index([userId, playedAt]) // Index for efficient querying by user and playback time
-  @@unique([userId, trackId, playedAt, trackName, artistName, albumName, durationMs, source]) // Prevent duplicates
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artists         Artist[] @relation("TrackArtists") 
+
+  @@index([userId, playedAt])
+  @@unique([userId, platformTrackId, playedAt])
+}
+
+model Artist {
+  id           String             @id @default(uuid())
+  name         String             @unique
+  platformId    String?            @unique 
+  imageUrl     String?
+  genres       String[]           @default([])
+  
+  history      ListeningHistory[] @relation("TrackArtists")
+
+  @@index([name])
 }
 
 model User {
-  id          String @id @default(uuid())
-  spotifyId   String @unique
-  displayName String
-  email       String?
-  accessToken String
-  refreshToken String?
+  id           String   @id @default(uuid())
+  // spotifyId    String   @unique
+  displayName  String
+  email        String     @unique
+  passwordHash String
+  createdAt   DateTime @default(now())
+
+  listeningHistory   ListeningHistory[]
+  internalSessions   InternalAuthSessions[]
+  connectedPlatforms ConnectedPlatforms[]
+}
+
+model InternalAuthSessions {
+  id           String   @id @default(uuid())
+  userId       String @unique
+  RefreshToken String @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+
+model ConnectedPlatforms {
+  id             String   @id @default(uuid())
+  userId         String
+  platformName   String
+  platformUserId String
+  AccessToken    String
+  RefreshToken   String
+  expiresAt     DateTime
+  connectedAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platformName])
 }

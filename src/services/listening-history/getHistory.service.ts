@@ -4,5 +4,5 @@ export const getHistoryService = async (user: any, platform: string) => {
   const handler =
     getHistoryHandlers[platform as keyof typeof getHistoryHandlers];
 
-  await handler(user);
+  return await handler(user);
 };
