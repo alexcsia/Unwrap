@@ -14,17 +14,30 @@ model ListeningHistory {
   platformTrackId String
   playedAt        DateTime
   trackName       String
-  artistName      String
   albumName       String
   durationMs      Int
   source          String
   metadata        Json
   uploadedAt      DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artists         Artist[] @relation("TrackArtists") 
 
   @@index([userId, playedAt])
   @@unique([userId, platformTrackId, playedAt])
+}
+
+model Artist {
+  id           String             @id @default(uuid())
+  name         String             @unique
+  platformId    String?            @unique 
+  imageUrl     String?
+  genres       String[]           @default([])
+  
+  history      ListeningHistory[] @relation("TrackArtists")
+
+  @@index([name])
 }
 
 model User {

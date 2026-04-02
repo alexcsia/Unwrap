@@ -6,14 +6,14 @@ const DEV_USER_ID = "1234";
 
 async function main() {
   console.log("Cleaning database...");
-  await Promise.all([
-    prisma.listeningHistory.deleteMany(),
-    prisma.internalAuthSessions.deleteMany(),
-    prisma.connectedPlatforms.deleteMany(),
-    prisma.user.deleteMany(),
-  ]);
+  await prisma.listeningHistory.deleteMany();
+  await prisma.artist.deleteMany();
+  await prisma.internalAuthSessions.deleteMany();
+  await prisma.connectedPlatforms.deleteMany();
+  await prisma.user.deleteMany();
 
   const passwordHash = await bcrypt.hash("password123", 10);
+
   await prisma.user.create({
     data: {
       id: DEV_USER_ID,
@@ -26,60 +26,57 @@ async function main() {
   const tracks = [
     {
       name: "Cruel Summer",
-      artist: "Taylor Swift",
+      artists: ["Taylor Swift"],
       album: "Lover",
       id: "sp_1",
     },
     {
       name: "Blinding Lights",
-      artist: "The Weeknd",
+      artists: ["The Weeknd"],
       album: "After Hours",
       id: "sp_2",
     },
     {
-      name: "Flowers",
-      artist: "Miley Cyrus",
-      album: "Endless Summer",
+      name: "Creepin'",
+      artists: ["Metro Boomin", "The Weeknd", "21 Savage"],
+      album: "Heroes & Villains",
       id: "sp_3",
     },
     {
-      name: "Anti-Hero",
-      artist: "Taylor Swift",
-      album: "Midnights",
+      name: "Stay",
+      artists: ["The Kid LAROI", "Justin Bieber"],
+      album: "F*ck Love 3",
       id: "sp_4",
     },
     {
-      name: "As It Was",
-      artist: "Harry Styles",
-      album: "Harry's House",
+      name: "Hype Boy",
+      artists: ["NewJeans"],
+      album: "New Jeans",
       id: "sp_5",
     },
-    { name: "Hype Boy", artist: "NewJeans", album: "New Jeans", id: "sp_6" },
-    { name: "Kill Bill", artist: "SZA", album: "SOS", id: "sp_7" },
     {
-      name: "Creepin'",
-      artist: "Metro Boomin",
-      album: "Heroes & Villains",
-      id: "sp_8",
+      name: "Kill Bill",
+      artists: ["SZA"],
+      album: "SOS",
+      id: "sp_6",
     },
-    { name: "Stay", artist: "The Kid LAROI", album: "F*ck Love 3", id: "sp_9" },
     {
-      name: "Heat Waves",
-      artist: "Glass Animals",
-      album: "Dreamland",
-      id: "sp_10",
+      name: "As It Was",
+      artists: ["Harry Styles"],
+      album: "Harry's House",
+      id: "sp_7",
     },
   ];
 
   console.log("Generating multi-year mock data...");
-  const mockPlays = [];
+
   const years = [2023, 2024, 2025];
 
   for (const year of years) {
     for (let month = 0; month < 12; month++) {
-      // Create ~40 plays per month to ensure pagination works (limit 10)
-      for (let i = 0; i < 40; i++) {
-        // Weighted selection: Songs at the start of the array appear more often
+      console.log(`Seeding ${month + 1}/${year}...`);
+
+      for (let i = 0; i < 50; i++) {
         const weight = Math.pow(Math.random(), 2);
         const trackIndex = Math.floor(weight * tracks.length);
         const track = tracks[trackIndex]!;
@@ -87,34 +84,43 @@ async function main() {
         const day = Math.floor(Math.random() * 28) + 1;
         const hour = Math.floor(Math.random() * 24);
         const minute = Math.floor(Math.random() * 60);
+        const second = Math.floor(Math.random() * 60);
+        const ms = Math.floor(Math.random() * 1000);
 
-        const playedAt = new Date(year, month, day, hour, minute);
+        const playedAt = new Date(year, month, day, hour, minute, second, ms);
 
-        mockPlays.push({
-          userId: DEV_USER_ID,
-          platformName: "spotify",
-          platformTrackId: track.id,
-          trackName: track.name,
-          artistName: track.artist,
-          albumName: track.album,
-          durationMs: 180000 + Math.floor(Math.random() * 60000),
-          playedAt,
-          source: "spotify_api",
-          metadata: {},
+        await prisma.listeningHistory.create({
+          data: {
+            userId: DEV_USER_ID,
+            platformName: "spotify",
+            platformTrackId: track.id,
+            trackName: track.name,
+            albumName: track.album,
+            durationMs: 180000 + Math.floor(Math.random() * 60000),
+            playedAt,
+            source: "spotify_api",
+            metadata: {},
+
+            artists: {
+              connectOrCreate: track.artists.map((artistName) => ({
+                where: { name: artistName },
+                create: {
+                  name: artistName,
+                  platformId: `artist_${artistName
+                    .toLowerCase()
+                    .replace(/\s/g, "_")}`,
+                  genres: [],
+                  imageUrl: null,
+                },
+              })),
+            },
+          },
         });
       }
     }
   }
 
-  // Use a transaction or chunking if the array gets massive (> 10,000)
-  await prisma.listeningHistory.createMany({
-    data: mockPlays,
-    skipDuplicates: true,
-  });
-
-  console.log(
-    `Seed complete! Created ${mockPlays.length} plays across 3 years.`,
-  );
+  console.log("Seed complete!");
 }
 
 main()
