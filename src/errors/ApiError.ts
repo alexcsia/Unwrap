@@ -1,4 +1,4 @@
-import type { ErrorCode } from "./error-messages";
+import type { ErrorCode } from "./errorMessages";
 
 export class ApiError extends Error {
   statusCode: number;
