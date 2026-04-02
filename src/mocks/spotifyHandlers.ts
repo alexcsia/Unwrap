@@ -11,11 +11,28 @@ export const spotifyHandlers = [
   }),
 
   http.get(
-    "https://api.spotify.com/v1/me/player/recently-played&limit=50",
-    () => {
+    "https://api.spotify.com/v1/me/player/recently-played",
+    ({ request }) => {
+      const url = new URL(request.url);
+      const limit = url.searchParams.get("limit");
+
       return HttpResponse.json({
-        item: { name: "Mock Song", artists: [{ name: "Mock Artist" }] },
-        is_playing: true,
+        items: [
+          {
+            track: {
+              id: "mock_track_id",
+              name: "Mock Song",
+              artists: [{ name: "Mock Artist" }],
+              album: { name: "Mock Album" },
+              duration_ms: 210000,
+            },
+            played_at: new Date().toISOString(),
+          },
+        ],
+        next: null,
+        cursors: { after: "mock_cursor" },
+        limit: limit,
+        href: "https://api.spotify.com/v1/me/player/recently-played",
       });
     },
   ),
