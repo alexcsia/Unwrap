@@ -91,9 +91,17 @@ export const refreshAccessToken = async (
   const data = await response.json();
   const newAccessToken = data.access_token;
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { accessToken: newAccessToken },
+  await prisma.connectedPlatforms.update({
+    where: {
+      userId_platformName: {
+        userId: user.id,
+        platformName: "spotify",
+      },
+    },
+    data: {
+      AccessToken: newAccessToken,
+      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+    },
   });
 
   return newAccessToken;
