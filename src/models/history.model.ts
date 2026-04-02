@@ -22,11 +22,18 @@ export const saveListeningHistory = async (
         platformName: "spotify",
         playedAt,
         trackName,
-        artistName,
         albumName,
         durationMs,
         source,
         metadata,
+        artists: {
+          connectOrCreate: {
+            where: { name: artistName }, // assumes artist names are unique
+            create: {
+              name: artistName,
+            },
+          },
+        },
       },
     });
   } catch (error: any | unknown) {
