@@ -1,4 +1,4 @@
-import { getTopTracks } from "@/controllers/top-tracks.ts/topTracks";
+import { getTopTracks } from "@/controllers/top-tracks/topTracks";
 import express from "express";
 import { checkAuth } from "@/middleware/auth.middleware";
 
