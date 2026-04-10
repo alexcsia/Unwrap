@@ -7,8 +7,6 @@ export const checkAuth = async (
   res: Response,
   next: NextFunction,
 ) => {
-  console.log("Current ENV:", process.env.NODE_ENV);
-
   if (process.env.NODE_ENV === "development") {
     req.user = { id: "1234" };
     return next();
