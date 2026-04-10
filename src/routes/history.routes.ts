@@ -1,5 +1,6 @@
 import express from "express";
 import multer from "multer";
+import path from "path";
 import {
   validateZipUpload,
   prepareUploadPaths,
@@ -10,7 +11,9 @@ import { validatePlatform } from "@/middleware/platform.middleware";
 import { checkAuth } from "@/middleware/auth.middleware";
 
 const router = express.Router();
-const upload = multer({ dest: "/uploads" });
+const upload = multer({
+  dest: path.join(process.cwd(), "uploads"),
+});
 
 router.get(
   "/history/:platform/recent",
