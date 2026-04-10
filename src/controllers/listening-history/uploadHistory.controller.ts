@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
-
+import { ApiError } from "@/errors/ApiError";
 import { uploadHistoryService } from "@/services/listening-history/uploadHistory.service";
+
 export const uploadHistoryController = async (
   req: Request,
   res: Response,
@@ -9,15 +10,19 @@ export const uploadHistoryController = async (
 
   const { platform } = req;
 
-  const user = req.user as {
-    id: string;
-    accessToken: string;
-    refreshToken: string;
-  };
+  const user = req.user;
+
+  if (!user) {
+    throw new ApiError(
+      401,
+      "UNAUTHORIZED",
+      "User session not found or expired",
+    );
+  }
 
   const { filePath, extractedPath } = req.filePaths!;
 
-  await uploadHistoryService(filePath, extractedPath, user, platform);
+  await uploadHistoryService(filePath, extractedPath, user.id, platform);
 
   res.status(200).json({ message: "Listening history uploaded successfully" });
 };
