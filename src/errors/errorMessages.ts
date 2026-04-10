@@ -8,7 +8,8 @@ export const ERROR_MESSAGES = {
   MISSING_PLATFORM: "Platform parameter is missing",
   UNSUPPORTED_PLATFORM: "Unsupported platform",
   SPOTIFY_API_ERROR: "Error while fetching Spotify API",
-  BAD_REQUEST: "Invalid token format",
+  BAD_REQUEST: "The request was invalid or cannot be processed",
+  NOT_FOUND: "Requested resource not found",
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
