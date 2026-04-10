@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as SpotifyStrategy } from "passport-spotify";
-import { connectSpotify } from "@/models/user.model";
+import { connectSpotify } from "@/models/connectedPlatforms";
 
 passport.use(
   new SpotifyStrategy(
