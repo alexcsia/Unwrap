@@ -2,7 +2,6 @@ import express from "express";
 import "@/config/passport";
 import "express-async-errors";
 import authRoutes from "./routes/auth.routes";
-import generalRoutes from "@/routes/general.routes";
 import historyRoutes from "@/routes/history.routes";
 import topTracksRoutes from "@/routes/topTracks.routes";
 import topArtistsRoutes from "@/routes/topArtists.routes";
@@ -46,7 +45,6 @@ app.use(passport.initialize());
 
 app.use(authRoutes);
 app.use(historyRoutes);
-app.use(generalRoutes);
 app.use(topTracksRoutes);
 app.use(topArtistsRoutes);
 
