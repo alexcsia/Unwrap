@@ -9,7 +9,7 @@ import { ApiError } from "@/errors/ApiError";
 const router = express.Router();
 
 router.get(
-  "/auth/spotify",
+  "/spotify",
   checkAuth,
   passport.authenticate("spotify", {
     session: false,
@@ -17,7 +17,7 @@ router.get(
   }),
 );
 
-router.get("/auth/callback", checkAuth, (req, res, next) => {
+router.get("/callback", checkAuth, (req, res, next) => {
   passport.authenticate(
     "spotify",
     { session: false },
@@ -36,10 +36,10 @@ router.get("/auth/callback", checkAuth, (req, res, next) => {
   )(req, res, next);
 });
 
-router.get("/api/auth/refresh", checkAuth, refreshController);
+router.get("/refresh", checkAuth, refreshController);
 
-router.post("/api/auth/login", loginController);
+router.post("/login", loginController);
 
-router.get("/api/auth/logout", checkAuth, logoutController);
+router.get("/logout", checkAuth, logoutController);
 
 export default router;

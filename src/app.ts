@@ -43,7 +43,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.use(passport.initialize());
 
-app.use(authRoutes);
+app.use("/auth", authRoutes);
 app.use(historyRoutes);
 app.use(topTracksRoutes);
 app.use(topArtistsRoutes);
