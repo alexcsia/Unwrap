@@ -16,14 +16,14 @@ const upload = multer({
 });
 
 router.get(
-  "/history/:platform/recent",
+  "/:platform/recent",
   checkAuth,
   validatePlatform,
   getHistoryController,
 );
 
 router.post(
-  "/history/:platform/upload",
+  "/:platform/upload",
   checkAuth,
   validatePlatform,
   upload.single("history"),
