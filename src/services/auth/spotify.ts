@@ -45,17 +45,14 @@ export const exchangeSpotifyCode = async (
   const data = await response.json();
   const { access_token, refresh_token, expires_in } = data;
 
-  // Fetch Spotify profile
   const userResponse = await fetch("https://api.spotify.com/v1/me", {
     headers: { Authorization: `Bearer ${access_token}` },
   });
 
   if (!userResponse.ok) {
-    // Extract details for debugging
     const status = userResponse.status;
     const statusText = userResponse.statusText;
 
-    // Try to get the body text (Spotify often returns JSON error messages)
     let errorDetail = "";
     try {
       errorDetail = await userResponse.text();
@@ -63,12 +60,8 @@ export const exchangeSpotifyCode = async (
       errorDetail = "Could not parse error body";
     }
 
-    console.error(
-      `[Spotify API Error] Status: ${status} ${statusText} | Body: ${errorDetail}`,
-    );
-
     throw new ApiError(
-      status || 502, // Pass the actual status if available
+      status || 502,
       "SPOTIFY_API_ERROR",
       `Spotify Profile Fetch Failed (${status}): ${statusText || "Unknown Error"}`,
     );
@@ -76,7 +69,6 @@ export const exchangeSpotifyCode = async (
 
   const spotifyUserData = await userResponse.json();
 
-  // Upsert connected platform
   await prisma.connectedPlatforms.upsert({
     where: {
       userId_platformName: {
