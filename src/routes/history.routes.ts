@@ -9,6 +9,7 @@ import { uploadHistoryController } from "@/controllers/listening-history/uploadH
 import { getHistoryController } from "@/controllers/listening-history/getHistory.controller";
 import { validatePlatform } from "@/middleware/platform.middleware";
 import { checkAuth } from "@/middleware/auth.middleware";
+import { generalLimiter } from "@/middleware/rateLimit.middleware";
 
 const router = express.Router();
 const upload = multer({
@@ -17,6 +18,7 @@ const upload = multer({
 
 router.get(
   "/:platform/recent",
+  generalLimiter,
   checkAuth,
   validatePlatform,
   getHistoryController,
@@ -24,6 +26,7 @@ router.get(
 
 router.post(
   "/:platform/upload",
+  generalLimiter,
   checkAuth,
   validatePlatform,
   upload.single("history"),
