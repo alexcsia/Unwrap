@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { getTopTracksService } from "@/services/top-tracks/getTopTracks";
 import { ApiError } from "@/errors/ApiError";
 
-export const getTopTracks = async (
+export const getTopTracksController = async (
   req: Request,
   res: Response,
   next: NextFunction,

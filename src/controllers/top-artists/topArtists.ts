@@ -6,7 +6,7 @@ import { ApiError } from "@/errors/ApiError";
  * GET /api/top-artists
  * Returns a user's top artists based on play count within a specific time range.
  */
-export const getTopArtists = async (
+export const getTopArtistsController = async (
   req: Request,
   res: Response,
   next: NextFunction,
