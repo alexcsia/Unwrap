@@ -30,7 +30,7 @@ model ListeningHistory {
 
 model Artist {
   id           String             @id @default(uuid())
-  name         String             @unique
+  name         String             
   platformId    String?            @unique 
   imageUrl     String?
   genres       String[]           @default([])
@@ -51,6 +51,8 @@ model User {
   listeningHistory   ListeningHistory[]
   internalSessions   InternalAuthSessions[]
   connectedPlatforms ConnectedPlatforms[]
+  exclusions Exclusion[]
+
 }
 
 model InternalAuthSessions {
@@ -77,4 +79,20 @@ model ConnectedPlatforms {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, platformName])
+}
+
+model Exclusion {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  targetId    String
+  name        String
+  artistName  String?
+  albumName   String?
+  excludedAt  DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId, type, targetId])
+  @@index([userId])
 }
