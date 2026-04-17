@@ -28,19 +28,29 @@ export const getTopArtistsService = async (userId: string, filters: any) => {
       artistName: string;
       imageUrl: string | null;
       playCount: bigint;
+      durationMs: bigint | null;
+      source: string | null;
+      uploadedAt: Date | null;
     }[]
   >`
   SELECT 
     a.id AS "artistId",
     a.name AS "artistName",
     a."imageUrl",
-    COUNT(lh.id) AS "playCount"
+    COUNT(lh.id) AS "playCount",
+    SUM(lh."durationMs") AS "durationMs",
+    MIN(lh."source") AS "source",
+    MAX(lh."uploadedAt") AS "uploadedAt"
   FROM "ListeningHistory" lh
   JOIN "_TrackArtists" ta ON ta."B" = lh.id
   JOIN "Artist" a ON a.id = ta."A"
   WHERE lh."userId" = ${userId}
     AND lh."playedAt" >= ${startDate}
     AND lh."playedAt" < ${endDate}
+    AND a."platformId" NOT IN (
+      SELECT "targetId" FROM "Exclusion" 
+      WHERE "userId" = ${userId} AND "type" = 'artist'
+    )
   GROUP BY a.id, a.name, a."imageUrl"
   ORDER BY "playCount" DESC
   LIMIT ${limit}
@@ -50,8 +60,14 @@ export const getTopArtistsService = async (userId: string, filters: any) => {
   const topArtists = topArtistsRaw.map((artist) => ({
     ...artist,
     playCount: Number(artist.playCount),
+    durationMs: Number(artist.durationMs ?? 0),
+    source: artist.source ?? "unknown",
+    uploadedAt: artist.uploadedAt
+      ? artist.uploadedAt.toISOString()
+      : new Date().toISOString(),
   }));
 
+  // Total count also needs to reflect exclusions
   const totalResultRaw = await prisma.$queryRaw<{ count: bigint }[]>`
   SELECT COUNT(DISTINCT a.id) as count
   FROM "ListeningHistory" lh
@@ -60,7 +76,10 @@ export const getTopArtistsService = async (userId: string, filters: any) => {
   WHERE lh."userId" = ${userId}
     AND lh."playedAt" >= ${startDate}
     AND lh."playedAt" < ${endDate}
-
+    AND a."platformId" NOT IN (
+      SELECT "targetId" FROM "Exclusion" 
+      WHERE "userId" = ${userId} AND "type" = 'artist'
+    )
 `;
 
   const total = Number(totalResultRaw[0]?.count ?? 0);
@@ -76,7 +95,12 @@ export const getTopArtistsService = async (userId: string, filters: any) => {
     },
     topArtists: topArtists.map((artist, index) => ({
       rank: offset + index + 1,
-      ...artist,
+      artistId: artist.artistId,
+      artistName: artist.artistName,
+      playCount: artist.playCount,
+      durationMs: artist.durationMs,
+      source: artist.source,
+      uploadedAt: artist.uploadedAt,
     })),
   };
 };
