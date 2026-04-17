@@ -3,43 +3,37 @@ import { logoutController } from "@/controllers/auth/logout";
 import { refreshController } from "@/controllers/auth/refresh";
 import { checkAuth } from "@/middleware/auth.middleware";
 import express from "express";
-import passport from "passport";
-import { ApiError } from "@/errors/ApiError";
+import querystring from "querystring";
+import { authLimiter } from "@/middleware/rateLimit.middleware";
+import { randomBytes } from "crypto";
+import { spotifyCallbackController } from "@/controllers/auth/spotifyCallback";
 
 const router = express.Router();
 
-router.get(
-  "/spotify",
-  checkAuth,
-  passport.authenticate("spotify", {
-    session: false,
-    scope: ["user-read-email", "user-read-recently-played"],
-  }),
-);
+const generateRandomString = (length: number): string =>
+  randomBytes(length).toString("hex").slice(0, length);
 
-router.get("/callback", checkAuth, (req, res, next) => {
-  passport.authenticate(
-    "spotify",
-    { session: false },
-    (err: Error | null, user: any) => {
-      if (err) return next(err);
+router.get("/spotify", authLimiter, checkAuth, function (req, res) {
+  var state = generateRandomString(16);
+  const scope = "user-read-email user-read-recently-played";
 
-      if (!user) {
-        return next(
-          new ApiError(401, "UNAUTHORIZED", "Spotify authentication failed"),
-        );
-      }
-
-      const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
-      res.redirect(`${FRONTEND_URL}/settings/integrations?success=true`);
-    },
-  )(req, res, next);
+  res.redirect(
+    "https://accounts.spotify.com/authorize?" +
+      querystring.stringify({
+        response_type: "code",
+        client_id: process.env.SPOTIFY_CLIENT_ID!,
+        scope: scope,
+        redirect_uri: process.env.SPOTIFY_CALLBACK_URI!,
+        state: state,
+      }),
+  );
 });
+router.get("/callback", authLimiter, checkAuth, spotifyCallbackController);
 
-router.get("/refresh", checkAuth, refreshController);
+router.get("/refresh", authLimiter, checkAuth, refreshController);
 
-router.post("/login", loginController);
+router.post("/login", authLimiter, loginController);
 
-router.get("/logout", checkAuth, logoutController);
+router.get("/logout", authLimiter, checkAuth, logoutController);
 
 export default router;
