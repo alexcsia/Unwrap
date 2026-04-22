@@ -5,6 +5,8 @@ import historyRoutes from "@/routes/history.routes";
 import topTracksRoutes from "@/routes/topTracks.routes";
 import topArtistsRoutes from "@/routes/topArtists.routes";
 import exclusionRoutes from "@/routes/exclusions.routes";
+import timeListenedRoutes from "@/routes/timeListened.routes";
+import userRoutes from "@/routes/user.routes";
 import { errorMiddleware } from "@/middleware/error.middleware";
 import passport from "passport";
 import cors from "cors";
@@ -48,6 +50,8 @@ app.use("/api/history", historyRoutes);
 app.use("/api/top-tracks", topTracksRoutes);
 app.use("/api/top-artists", topArtistsRoutes);
 app.use("/api/exclusions", exclusionRoutes);
+app.use("/api/time-listened", timeListenedRoutes);
+app.use("/", userRoutes);
 
 app.use(errorMiddleware);
 
