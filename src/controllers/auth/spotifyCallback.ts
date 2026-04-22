@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
-import { exchangeSpotifyCode } from "@/services/auth/spotify";
+import { exchangeSpotifyCode } from "@/services/auth/platforms/spotify";
 import querystring from "querystring";
 
 export const spotifyCallbackController = async (

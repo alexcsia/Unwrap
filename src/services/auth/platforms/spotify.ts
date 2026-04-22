@@ -1,5 +1,7 @@
 import { ApiError } from "@/errors/ApiError";
 import prisma from "@/utils/prisma.util";
+import { addConnection } from "@/models/connectedPlatforms";
+import type { SpotifyUser } from "../../listening-history/platforms/spotify/types";
 
 interface TokenExchangeResult {
   access_token: string;
@@ -95,4 +97,51 @@ export const exchangeSpotifyCode = async (
   });
 
   return { access_token, refresh_token, expires_in };
+};
+
+export const refreshAccessToken = async (
+  user: SpotifyUser,
+): Promise<string> => {
+  const tokenEndpoint = "https://accounts.spotify.com/api/token";
+
+  console.log("Refreshing Spotify access token for user:", user);
+
+  const authHeader = Buffer.from(
+    `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`,
+  ).toString("base64");
+
+  const params = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: user.RefreshToken,
+  });
+
+  const response = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${authHeader}`,
+    },
+    body: params.toString(),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+
+    console.error("Spotify Refresh Error:", errorBody);
+    throw new ApiError(
+      502,
+      "SPOTIFY_API_ERROR",
+      "Failed to refresh Spotify access token",
+    );
+  }
+
+  const data = await response.json();
+
+  const newAccessToken = data.access_token;
+  const newRefreshToken = data.refresh_token || user.RefreshToken;
+  const expiresIn = data.expires_in;
+
+  await addConnection(user.userId, newAccessToken, newRefreshToken, expiresIn);
+
+  return newAccessToken;
 };
