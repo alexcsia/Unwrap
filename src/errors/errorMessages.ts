@@ -10,6 +10,8 @@ export const ERROR_MESSAGES = {
   SPOTIFY_API_ERROR: "Error while fetching Spotify API",
   BAD_REQUEST: "The request was invalid or cannot be processed",
   NOT_FOUND: "Requested resource not found",
+  CACHE_LOCKED: "Cache locked by another process, please try again later",
+  CONFLICT: "Email already in use",
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
