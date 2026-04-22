@@ -22,7 +22,6 @@ export const getTopTracksService = async (userId: string, filters: any) => {
     endDate = new Date();
   }
 
-  // Fetch all exclusions for this user
   const exclusions = await prisma.exclusion.findMany({
     where: { userId },
     select: { type: true, targetId: true },
@@ -38,9 +37,9 @@ export const getTopTracksService = async (userId: string, filters: any) => {
   const whereClause = {
     userId,
     playedAt: { gte: startDate, lt: endDate },
-    // 1. Exclude blocked tracks
+
     platformTrackId: { notIn: excludedTrackIds },
-    // 2. Exclude tracks where ANY artist is blocked
+
     artists: {
       none: {
         platformId: { in: excludedArtistIds },
@@ -78,18 +77,17 @@ export const getTopTracksService = async (userId: string, filters: any) => {
     ]),
   );
 
-  // Updated count query to respect exclusions
   const totalResultRaw = await prisma.$queryRaw<{ count: bigint }[]>`
   SELECT COUNT(DISTINCT lh."platformTrackId") as count
   FROM "ListeningHistory" lh
   WHERE lh."userId" = ${userId}
     AND lh."playedAt" >= ${startDate}
     AND lh."playedAt" < ${endDate}
-    -- Exclude tracks
+    
     AND lh."platformTrackId" NOT IN (
       SELECT "targetId" FROM "Exclusion" WHERE "userId" = ${userId} AND "type" = 'track'
     )
-    -- Exclude tracks by blocked artists
+    
     AND NOT EXISTS (
       SELECT 1 FROM "_TrackArtists" ta
       JOIN "Artist" a ON a.id = ta."A"

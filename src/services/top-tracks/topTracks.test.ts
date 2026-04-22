@@ -26,13 +26,11 @@ describe("Top Tracks Service", () => {
   });
 
   test("should return formatted top tracks while filtering exclusions", async () => {
-    // 1. Mock Exclusions
     (prisma.exclusion.findMany as any).mockResolvedValue([
       { type: "track", targetId: "blocked-track-id" },
       { type: "artist", targetId: "blocked-artist-id" },
     ]);
 
-    // 2. Mock GroupBy (The core top tracks list)
     const mockGroupedTracks = [
       {
         platformTrackId: "track-1",
@@ -47,7 +45,6 @@ describe("Top Tracks Service", () => {
       mockGroupedTracks,
     );
 
-    // 3. Mock findMany (The artist name lookup)
     (prisma.listeningHistory.findMany as any).mockResolvedValue([
       {
         platformTrackId: "track-1",
@@ -55,13 +52,11 @@ describe("Top Tracks Service", () => {
       },
     ]);
 
-    // 4. Mock $queryRaw (The total count)
     (prisma.$queryRaw as any).mockResolvedValue([{ count: BigInt(1) }]);
 
     const filters = { limit: 10, offset: 0 };
     const result = await getTopTracksService(userId, filters);
 
-    // Assertions
     expect(result.topTracks).toHaveLength(1);
     expect(result.topTracks[0]).toEqual({
       rank: 1,
@@ -75,7 +70,6 @@ describe("Top Tracks Service", () => {
       uploadedAt: "2025-01-01T00:00:00.000Z",
     });
 
-    // Ensure exclusions were passed to the where clause
     const groupByCall = (prisma.listeningHistory.groupBy as any).mock
       .calls[0][0];
     expect(groupByCall.where.platformTrackId.notIn).toContain(
@@ -97,7 +91,6 @@ describe("Top Tracks Service", () => {
       },
     ]);
 
-    // Mock collaboration artists
     (prisma.listeningHistory.findMany as any).mockResolvedValue([
       {
         platformTrackId: "collab-1",
