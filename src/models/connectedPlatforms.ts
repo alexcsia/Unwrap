@@ -47,3 +47,24 @@ export const connectSpotify = async (
     },
   });
 };
+
+export const addConnection = async (
+  userId: string,
+  accessToken: string,
+  refreshToken: string,
+  expires: number,
+) => {
+  await prisma.connectedPlatforms.update({
+    where: {
+      userId_platformName: {
+        userId: userId,
+        platformName: "spotify",
+      },
+    },
+    data: {
+      AccessToken: accessToken,
+      RefreshToken: refreshToken,
+      expiresAt: new Date(Date.now() + expires * 1000),
+    },
+  });
+};

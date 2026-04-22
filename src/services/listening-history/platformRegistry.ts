@@ -1,5 +1,5 @@
-import { spotifyUploadHandler } from "./platforms/spotify/upload-history/spotifyUpload.service";
-import { spotifyGetHistoryHandler } from "./platforms/spotify/get-history/spotifyGetHistory.service";
+import { spotifyUploadHandler } from "./platforms/spotify/upload-history/upload.service";
+import { spotifyGetHistoryHandler } from "./platforms/spotify/get-history/getHistory.service";
 export const uploadHandlers = {
   spotify: spotifyUploadHandler,
 };

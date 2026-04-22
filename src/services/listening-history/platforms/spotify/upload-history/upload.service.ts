@@ -35,11 +35,17 @@ export const spotifyUploadHandler = async (
     }
 
     const jsonFiles = getJsonFiles(historyDir);
+    let totalEntriesProcessed = 0;
 
     for (const file of jsonFiles) {
       const entries = readListeningEntries(historyDir, file);
       await processSpotifyEntries(entries, userId);
+      totalEntriesProcessed += entries.length;
     }
+    return {
+      success: true,
+      message: `Sync started for ${totalEntriesProcessed} tracks across ${jsonFiles.length} files.`,
+    };
   } finally {
     cleanup(filePath, extractedPath);
   }

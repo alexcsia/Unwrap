@@ -1,41 +1,45 @@
 import prisma from "@/utils/prisma.util";
+import { z } from "zod";
+import { listeningHistorySchema } from "@/services/listening-history/platforms/spotify/validators";
 
-export const saveListeningHistory = async (
-  userId: string,
-  platformTrackId: string,
-  playedAt: Date,
-  trackName: string,
-  artistName: string,
-  albumName: string,
-  durationMs: number,
-  source: string = "manual_upload",
-  metadata: Record<string, any> = {},
-) => {
+type ListeningHistoryDTO = z.infer<typeof listeningHistorySchema>;
+export const saveListeningHistory = async (data: ListeningHistoryDTO) => {
   try {
-    return await prisma.listeningHistory.create({
+    const entry = await prisma.listeningHistory.create({
       data: {
-        userId,
-        platformTrackId,
-        platformName: "spotify",
-        playedAt,
-        trackName,
-        albumName,
-        durationMs,
-        source,
-        metadata,
+        user: {
+          connect: { id: data.userId },
+        },
+        platformTrackId: data.platformTrackId,
+        platformName: data.platformName,
+        trackName: data.trackName,
+        albumName: data.albumName,
+        durationMs: data.durationMs,
+        playedAt: new Date(data.playedAt),
+        source: data.source,
+        metadata: data.metadata || {},
+        uploadedAt: data.uploadedAt ? new Date(data.uploadedAt) : new Date(),
+
         artists: {
-          connectOrCreate: {
-            where: { name: artistName }, // assumes artist names are unique
-            create: {
-              name: artistName,
-            },
-          },
+          connectOrCreate: data.artists
+            .filter((artist) => artist.platformId && artist.name) // ✅ HARD GUARD
+            .map((artist) => ({
+              where: { platformId: artist.platformId },
+              create: {
+                platformId: artist.platformId,
+                name: artist.name,
+              },
+            })),
         },
       },
+      include: {
+        artists: true,
+      },
     });
-  } catch (error: any | unknown) {
+
+    return entry;
+  } catch (error: any) {
     if (error.code === "P2002") {
-      console.warn("Duplicate entry for trackId:", platformTrackId);
       return null;
     }
     throw error;
