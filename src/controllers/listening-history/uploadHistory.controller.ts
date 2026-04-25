@@ -17,11 +17,6 @@ export const uploadHistoryController = async (
 
   const { filePath, extractedPath } = req.filePaths!;
 
-  console.log("User ID:", user.id);
-  console.log("File path:", filePath);
-  console.log("Extracted path:", extractedPath);
-  console.log("Platform:", platform);
-
   await uploadHistoryService(filePath, extractedPath, user.id, platform);
 
   res.status(200).json({ message: "Listening history uploaded successfully" });
