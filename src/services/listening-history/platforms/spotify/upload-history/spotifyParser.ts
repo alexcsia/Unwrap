@@ -15,10 +15,11 @@ export const processSpotifyEntries = async (
     console.error(`[ERROR] No entries found for user ${userId}`);
     return;
   }
+  console.log(rawEntries.length, "entries to process for user", userId);
 
   for (let i = 0; i < rawEntries.length; i += BATCH_SIZE) {
     const batch = rawEntries.slice(i, i + BATCH_SIZE);
-
+    console.log(batch.length, "entries in batch", i);
     const transformed = batch
       .filter((raw) => raw.spotify_track_uri !== null)
       .map((raw) => {
@@ -57,6 +58,7 @@ export const processSpotifyEntries = async (
       throw new ApiError(400, "INVALID_UPLOAD", `Malformed data at batch ${i}`);
     }
 
+    console.log(result.data.length, "valid entries in batch", i);
     const jobs = result.data.map((entry) => ({
       name: "sync-track",
       data: { userId, entry },
@@ -70,6 +72,7 @@ export const processSpotifyEntries = async (
 
     if (jobs.length > 0) {
       const createdJobs = await historyQueue.addBulk(jobs);
+      console.log(createdJobs.length, "jobs created for batch", i);
     }
   }
 };
