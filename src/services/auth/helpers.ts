@@ -14,11 +14,7 @@ export const comparePasswords = async (
   receivedPassword: string,
   userPassword: string,
 ): Promise<boolean> => {
-  const passwordMatch = await bcrypt.compare(
-    await bcryptHash(receivedPassword),
-    userPassword,
-  );
-  return passwordMatch;
+  return await bcrypt.compare(receivedPassword, userPassword);
 };
 
 export const generateTokens = async (
