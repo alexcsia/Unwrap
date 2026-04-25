@@ -2,18 +2,15 @@ import { bcryptHash, generateTokens } from "./helpers";
 import { ApiError } from "@/errors/ApiError";
 import prisma from "@/utils/prisma.util";
 import { Prisma, type InternalAuthSessions } from "@prisma/client";
-
 import { saveRefreshToken } from "@/models/authSession.model";
 import bcrypt from "bcrypt";
 
 export const rotateRefreshToken = async (oldToken: string) => {
   const { sessionId, rawToken } = parseRefreshToken(oldToken);
+  const session = await getValidSession(prisma, sessionId);
+  await verifyRefreshToken(prisma, rawToken, session);
 
   return prisma.$transaction(async (tx) => {
-    const session = await getValidSession(tx, sessionId);
-
-    await verifyRefreshToken(tx, rawToken, session);
-
     const tokens = await issueNewTokens(tx, session.userId);
 
     await deleteOldSession(tx, session.id);
@@ -23,7 +20,8 @@ export const rotateRefreshToken = async (oldToken: string) => {
 };
 
 const parseRefreshToken = (token: string) => {
-  const parts = token.split(".");
+  const cleanToken = token.trim();
+  const parts = cleanToken.split(".");
 
   if (parts.length !== 2 || !parts[0] || !parts[1]) {
     throw new ApiError(400, "BAD_REQUEST", "Invalid token format");
@@ -33,7 +31,7 @@ const parseRefreshToken = (token: string) => {
 };
 
 const getValidSession = async (
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | typeof prisma,
   sessionId: string,
 ) => {
   const session = await tx.internalAuthSessions.findUnique({
@@ -51,7 +49,7 @@ const getValidSession = async (
 };
 
 const verifyRefreshToken = async (
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | typeof prisma,
   rawToken: string,
   session: InternalAuthSessions,
 ) => {
@@ -66,16 +64,15 @@ const verifyRefreshToken = async (
 };
 
 const issueNewTokens = async (tx: Prisma.TransactionClient, userId: string) => {
-  const { accessToken, refreshToken: newRawToken } =
-    await generateTokens(userId);
+  const { accessToken, refreshToken } = await generateTokens(userId);
 
-  const hashedRefreshToken = await bcryptHash(newRawToken);
+  const hashedRefreshToken = await bcryptHash(refreshToken);
 
   const newSession = await saveRefreshToken(tx, userId, hashedRefreshToken);
 
   return {
     accessToken,
-    refreshToken: `${newSession.id}.${newRawToken}`,
+    refreshToken: `${newSession.id}.${refreshToken}`,
   };
 };
 

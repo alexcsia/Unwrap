@@ -1,5 +1,5 @@
 import { ApiError } from "@/errors/ApiError";
-import { comparePasswords, generateTokens } from "./helpers";
+import { bcryptHash, comparePasswords, generateTokens } from "./helpers";
 import { findUserByEmail } from "@/models/user.model";
 import { saveRefreshToken } from "@/models/authSession.model";
 import prisma from "@/utils/prisma.util";
@@ -22,7 +22,11 @@ export const authenticateUser = async (
 
   const authTokens = await generateTokens(user.id);
 
-  await saveRefreshToken(prisma, user.id, authTokens.refreshToken);
+  const hashedRefreshToken = await bcryptHash(authTokens.refreshToken);
+  const session = await saveRefreshToken(prisma, user.id, hashedRefreshToken);
 
-  return authTokens;
+  return {
+    accessToken: authTokens.accessToken,
+    refreshToken: `${session.id}.${authTokens.refreshToken}`,
+  };
 };
