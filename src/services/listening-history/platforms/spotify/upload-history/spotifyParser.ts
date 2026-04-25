@@ -8,8 +8,6 @@ export const processSpotifyEntries = async (
   rawEntries: any[],
   userId: string,
 ) => {
-  console.log(`Processing ${rawEntries.length} entries for user: ${userId}`);
-
   for (let i = 0; i < rawEntries.length; i += BATCH_SIZE) {
     const batch = rawEntries.slice(i, i + BATCH_SIZE);
 
@@ -36,7 +34,6 @@ export const processSpotifyEntries = async (
     });
 
     const result = listeningHistoryArraySchema.safeParse(transformed);
-    console.log(result);
     if (!result.success) {
       throw new ApiError(
         400,
@@ -58,9 +55,6 @@ export const processSpotifyEntries = async (
 
     if (jobs.length > 0) {
       const createdJobs = await historyQueue.addBulk(jobs);
-      console.log(
-        `[Batch] Added ${createdJobs.length} jobs (Total progress: ${i + batch.length}/${rawEntries.length})`,
-      );
     }
   }
 };
