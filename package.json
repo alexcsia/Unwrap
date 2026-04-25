@@ -34,8 +34,6 @@
     "@types/express": "^5.0.1",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.13.14",
-    "@types/passport": "^1.0.17",
-    "@types/passport-spotify": "^2.0.4",
     "adm-zip": "^0.5.16",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.73.1",
@@ -48,8 +46,6 @@
     "msw": "^2.12.10",
     "multer": "^1.4.5-lts.2",
     "package.json": "^2.0.1",
-    "passport": "^0.7.0",
-    "passport-spotify": "^2.0.0",
     "prisma": "^6.5.0",
     "supertest": "^7.2.2",
     "zod": "^4.3.6"

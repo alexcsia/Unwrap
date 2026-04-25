@@ -8,7 +8,6 @@ import exclusionRoutes from "@/routes/exclusions.routes";
 import timeListenedRoutes from "@/routes/timeListened.routes";
 import userRoutes from "@/routes/user.routes";
 import { errorMiddleware } from "@/middleware/error.middleware";
-import passport from "passport";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
@@ -42,8 +41,6 @@ if (
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-app.use(passport.initialize());
 
 app.use("/auth", authRoutes);
 app.use("/api/history", historyRoutes);
