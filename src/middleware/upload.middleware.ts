@@ -37,14 +37,15 @@ export const prepareUploadPaths = (
     throw new ApiError(
       500,
       "DEFAULT",
-      "Multer failed to provide a storage path for the uploaded file.",
+      "Multer failed to provide a storage path.",
     );
   }
 
-  // Attach paths to req for controller to use
+  const uniqueFolder = `${req.file.filename}_extracted`;
+
   req.filePaths = {
     filePath: req.file.path,
-    extractedPath: path.join(__dirname, "../../uploads/extracted"),
+    extractedPath: path.join(path.dirname(req.file.path), uniqueFolder),
   };
 
   next();

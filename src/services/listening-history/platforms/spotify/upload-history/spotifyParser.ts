@@ -8,6 +8,13 @@ export const processSpotifyEntries = async (
   rawEntries: any[],
   userId: string,
 ) => {
+  if (!rawEntries || !Array.isArray(rawEntries) || rawEntries.length === 0) {
+    console.error(
+      `[ERROR] No entries found for user ${userId}. Check if JSON files were read correctly.`,
+    );
+    return;
+  }
+
   for (let i = 0; i < rawEntries.length; i += BATCH_SIZE) {
     const batch = rawEntries.slice(i, i + BATCH_SIZE);
 
@@ -35,11 +42,12 @@ export const processSpotifyEntries = async (
 
     const result = listeningHistoryArraySchema.safeParse(transformed);
     if (!result.success) {
-      throw new ApiError(
-        400,
-        "INVALID_UPLOAD",
-        `Malformed data detected in batch starting at index ${i}`,
+      console.log(
+        "FIRST MALFORMED ITEM:",
+        JSON.stringify(transformed[0], null, 2),
       );
+      console.log("ZOD ERRORS:", result.error.issues);
+      throw new ApiError(400, "INVALID_UPLOAD", `Malformed data at batch ${i}`);
     }
 
     const jobs = result.data.map((entry) => ({
