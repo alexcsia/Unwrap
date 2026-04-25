@@ -7,6 +7,8 @@ import { redisConnection } from "@/lib/queue";
 import type { ListeningHistoryDTO } from "@/services/listening-history/platforms/spotify/validators";
 import { redisCache } from "@/lib/queue";
 
+const CACHE_TTL_SEC = 7 * 24 * 3600; // 7 days
+
 const worker = new Worker<HistorySyncJobData>(
   "history-sync",
   async (job: Job<HistorySyncJobData>) => {
@@ -60,13 +62,14 @@ const worker = new Worker<HistorySyncJobData>(
         let artistsFromSpotify: { id: string; name: string }[] | null = null;
 
         if (cached) {
+          await redisCache.expire(cacheKey, CACHE_TTL_SEC);
           artistsFromSpotify = JSON.parse(cached);
           console.log(`[Job ${job.id}]  Cache hit`);
         } else {
           const lock = await redisCache.set(lockKey, "1", "EX", 30, "NX");
           if (lock) {
             lockAcquired = true;
-            console.log(`[Job ${job.id}] 🌐 Fetching from Spotify...`);
+            console.log(`[Job ${job.id}]  Fetching from Spotify...`);
 
             try {
               artistsFromSpotify = await getSpotifyArtistIds(
@@ -77,7 +80,7 @@ const worker = new Worker<HistorySyncJobData>(
                 cacheKey,
                 JSON.stringify(artistsFromSpotify),
                 "EX",
-                3600,
+                CACHE_TTL_SEC,
               );
             } catch (apiErr: any) {
               if (apiErr.status === 429) {
@@ -93,7 +96,7 @@ const worker = new Worker<HistorySyncJobData>(
               );
             }
           } else {
-            console.log(`[Job ${job.id}] ⏳ Resource locked, retrying...`);
+            console.log(`[Job ${job.id}]  Resource locked, retrying...`);
             await job.moveToDelayed(Date.now() + 1000);
             return;
           }
