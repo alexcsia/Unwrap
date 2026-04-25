@@ -30,7 +30,7 @@ router.get("/spotify", authLimiter, checkAuth, function (req, res) {
 });
 router.get("/callback", authLimiter, checkAuth, spotifyCallbackController);
 
-router.get("/refresh", authLimiter, checkAuth, refreshController);
+router.get("/refresh", authLimiter, refreshController);
 
 router.post("/login", authLimiter, loginController);
 
