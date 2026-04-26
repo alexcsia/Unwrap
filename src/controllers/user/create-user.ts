@@ -2,6 +2,15 @@ import type { Request, Response, NextFunction } from "express";
 import { createUserService } from "@/services/user/createUser.service";
 import { ApiError } from "@/errors/ApiError";
 
+/**
+ * POST /api/users
+ *
+ * Endpoint for creating a new user account.
+ * Expects email, displayName, and password in the request body.
+ * Creates a user and returns the created user object.
+ * Returns a bad request error if required fields are missing.
+ */
+
 export const createUserController = async (
   req: Request,
   res: Response,

@@ -2,6 +2,17 @@ import type { Request, Response, NextFunction } from "express";
 import { getTopTracksService } from "@/services/top-tracks/getTopTracks";
 import { ApiError } from "@/errors/ApiError";
 
+/**
+ * GET /api/top-tracks
+ *
+ * Endpoint for retrieving top tracks based on listening history.
+ * Requires an authenticated user.
+ * Supports time filters: year, month, date, from, to.
+ * Supports pagination: limit and offset.
+ * Returns tracks ranked by play count and listening duration.
+ * Returns an unauthorized error if no user is authenticated.
+ */
+
 export const getTopTracksController = async (
   req: Request,
   res: Response,

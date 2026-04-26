@@ -2,6 +2,18 @@ import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
 import { timeListenedService } from "@/services/time-listened/time-listened";
 
+/**
+ * GET /api/time-listened
+ *
+ * Endpoint for retrieving total listening time.
+ * Requires an authenticated user.
+ * Supports time filters: year, month, date, from, to.
+ * Supports pagination: limit and offset.
+ * Returns aggregated listening duration.
+ * Returns an error if month is provided without year.
+ * Returns an unauthorized error if no user is authenticated.
+ */
+
 export const timeListenedController = async (
   req: Request,
   res: Response,

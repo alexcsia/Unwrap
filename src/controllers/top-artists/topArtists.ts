@@ -1,10 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 import { getTopArtistsService } from "@/services/top-artists/getTopArtists";
 import { ApiError } from "@/errors/ApiError";
-
 /**
  * GET /api/top-artists
- * Returns a user's top artists based on play count within a specific time range.
+ *
+ * Endpoint for retrieving top artists based on listening history.
+ * Requires an authenticated user.
+ * Supports time filters: year, month, date, from, to.
+ * Supports pagination: limit and offset.
+ * Returns artists ranked by play count and listening duration.
+ * Returns an unauthorized error if no user is authenticated.
  */
 export const getTopArtistsController = async (
   req: Request,

@@ -1,14 +1,20 @@
 import type { Request, Response, NextFunction } from "express";
 import * as ExclusionService from "@/services/exclusions/exclusions.service";
 
+/**
+ * POST /api/exclusions
+ *
+ * Endpoint for creating an exclusion. Requires an authenticated user.
+ * Expects type and targetId (artistId or trackId) in the request body.
+ * Creates an exclusion record
+ */
+
 export const addExclusionController = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    console.log("Request body in addExclusionController:", req.body);
-
     const result = await ExclusionService.addExclusionService(req.user!.id, {
       type: req.body.type,
       targetId:
@@ -23,6 +29,15 @@ export const addExclusionController = async (
   }
 };
 
+/**
+ * DELETE /api/exclusions
+ *
+ * Endpoint for removing an exclusion. Requires an authenticated user.
+ * Expects type and id as query parameters.
+ * Deletes the matching exclusion record.
+ * Returns 204 on success.
+ */
+
 export const deleteExclusionController = async (
   req: Request<{}, {}, {}, { type: string; id: string }>,
   res: Response,
@@ -36,6 +51,13 @@ export const deleteExclusionController = async (
     next(e);
   }
 };
+
+/**
+ * GET /api/exclusions
+ *
+ * Endpoint for retrieving user exclusions. Requires an authenticated user.
+ * Returns all exclusions for the user.
+ */
 
 export const getExclusionsController = async (
   req: Request,

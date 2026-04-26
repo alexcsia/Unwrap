@@ -2,6 +2,17 @@ import type { Request, Response } from "express";
 import { ApiError } from "@/errors/ApiError";
 import { uploadHistoryService } from "@/services/listening-history/uploadHistory.service";
 
+/**
+ * POST /api/history/upload
+ *
+ * Endpoint for uploading extended listening history.
+ * Requires an authenticated user and a supported platform (for example Spotify).
+ * Expects a processed file (zip) with extracted data paths.
+ * Triggers background ingestion of listening events.
+ * Returns success message on completion.
+ * Returns an unauthorized error if no user is authenticated.
+ */
+
 export const uploadHistoryController = async (
   req: Request,
   res: Response,

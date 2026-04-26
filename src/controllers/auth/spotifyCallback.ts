@@ -3,6 +3,16 @@ import { ApiError } from "@/errors/ApiError";
 import { exchangeSpotifyCode } from "@/services/auth/platforms/spotify";
 import querystring from "querystring";
 
+/**
+ * GET /auth/spotify/callback
+ *
+ * Endpoint for handling Spotify OAuth callback.
+ * Expects query parameters: code and state.
+ * Validates state and exchanges code for Spotify tokens.
+ * Returns access and refresh tokens with expiration.
+ * Redirects with error if state is missing.
+ * Returns error if code is missing.
+ */
 export const spotifyCallbackController = async (
   req: Request,
   res: Response,
@@ -27,9 +37,8 @@ export const spotifyCallbackController = async (
 
     res.json({
       success: true,
-      access_token: result.access_token,
-      refresh_token: result.refresh_token,
-      expires_in: result.expires_in,
+      message: "Spotify account connected successfully.",
+      platform: "spotify",
     });
   } catch (error) {
     next(error);
