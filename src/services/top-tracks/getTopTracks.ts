@@ -1,5 +1,29 @@
 import prisma from "@/utils/prisma.util";
 
+/**
+ * Service: getTopTracksService
+ *
+ * Retrieves a ranked list of a user's most-played tracks within a specific timeframe,
+ * filtering out tracks or artists based on user-defined exclusions.
+ *
+ * Flow:
+ * - Normalizes date filters (year, month, custom range) into precise start and end boundaries.
+ * - Fetches user exclusion lists for both "track" and "artist" types.
+ * - Aggregates listening history using Prisma's `groupBy`, filtering by date and excluding
+ * specific track IDs or tracks featuring excluded artists.
+ * - Performs a secondary query to fetch artist names for the top tracks (since `groupBy`
+ * does not support relation joins).
+ * - Executes a raw SQL query to determine the total count of unique, non-excluded tracks
+ * to provide accurate pagination metadata.
+ *
+ * Returns:
+ * - pagination: Metadata including limits, offsets, total counts, and navigation states.
+ * - topTracks: Array of track objects including rank, play count, artist names, and source metadata.
+ *
+ * Errors:
+ * - 500 (inherited) if Prisma aggregation or the raw SQL count query fails.
+ */
+
 export const getTopTracksService = async (userId: string, filters: any) => {
   const { year, month, date, from, to, limit = 10, offset = 0 } = filters;
 

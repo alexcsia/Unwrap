@@ -6,6 +6,28 @@ import {
 } from "@/models/exclusion.model";
 import prisma from "@/utils/prisma.util";
 
+/**
+ * Service: addExclusionService
+ *
+ * Creates a user exclusion for an artist or track.
+ *
+ * Flow:
+ * - Validates targetId
+ * - Fetches metadata based on type
+ *   - Artist: from artist table
+ *   - Track: from listening history
+ * - Stores exclusion record in database
+ *
+ * Returns:
+ * - exclusion id
+ * - name
+ * - excludedAt timestamp
+ *
+ * Errors:
+ * - 400 if targetId is missing
+ * - 404 if artist or track is not found
+ */
+
 export const addExclusionService = async (
   userId: string,
   data: { type: "artist" | "track"; targetId: string },
@@ -65,6 +87,21 @@ export const addExclusionService = async (
   };
 };
 
+/**
+ * Service: removeExclusionService
+ *
+ * Deletes an existing exclusion for a user.
+ *
+ * Flow:
+ * - Deletes exclusion by userId, type, and targetId
+ *
+ * Returns:
+ * - success flag
+ *
+ * Errors:
+ * - 404 if no matching exclusion exists
+ */
+
 export const removeExclusionService = async (
   userId: string,
   type: string,
@@ -78,6 +115,20 @@ export const removeExclusionService = async (
 
   return { success: true };
 };
+
+/**
+ * Service: getExclusionsService
+ *
+ * Retrieves all exclusions for a user.
+ *
+ * Flow:
+ * - Fetches all exclusions from database
+ * - Groups results by artist and track
+ *
+ * Returns:
+ * - artists: excluded artist list
+ * - tracks: excluded track list
+ */
 
 export const getExclusionsService = async (userId: string) => {
   const exclusions = await getExclusionsByUserId(userId);

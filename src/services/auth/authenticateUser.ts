@@ -4,6 +4,27 @@ import { findUserByEmail } from "@/models/user.model";
 import { saveRefreshToken } from "@/models/authSession.model";
 import prisma from "@/utils/prisma.util";
 
+/**
+ * Service: authenticateUser
+ *
+ * Authenticates a user using email and password.
+ *
+ * Flow:
+ * - Validates email input
+ * - Fetches user by email
+ * - Compares password with stored hash
+ * - Generates access and refresh tokens
+ * - Hashes refresh token and stores it in DB
+ *
+ * Returns:
+ * - accessToken
+ * - refreshToken (sessionId + raw token)
+ *
+ * Errors:
+ * - 400 if email is missing
+ * - 401 if user not found or password mismatch
+ */
+
 export const authenticateUser = async (
   email: string,
   password: string,

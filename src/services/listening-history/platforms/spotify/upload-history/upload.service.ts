@@ -16,6 +16,28 @@ interface ISpotifyListeningEntry {
   [key: string]: any;
 }
 
+/**
+ * Service: spotifyUploadHandler
+ *
+ * Orchestrates the extraction, parsing, and processing of Spotify Extended Streaming History ZIP files.
+ *
+ * Flow:
+ * - Extracts the uploaded ZIP file to a temporary directory
+ * - Locates the "Spotify Extended Streaming History" folder within the extraction
+ * - Identifies all JSON files containing listening data
+ * - Iteratively reads each file and triggers the background processing (worker/queue) for tracks
+ * - Accumulates the total count of tracks submitted for synchronization
+ * - Executes a cleanup phase to remove temporary files and the original ZIP
+ *
+ * Returns:
+ * - success: Boolean indicating the sync process was successfully initiated
+ * - message: A string summarizing the number of tracks and files queued for processing
+ *
+ * Errors:
+ * - 400 if the expected Spotify history folder is missing from the ZIP
+ * - 500 if file system operations or ZIP extraction fails
+ */
+
 export const spotifyUploadHandler = async (
   filePath: string,
   extractedPath: string,

@@ -1,5 +1,26 @@
 import prisma from "@/utils/prisma.util";
 
+/**
+ * Service: getTopArtistsService
+ *
+ * Retrieves a ranked list of a user's most-played artists within a specific timeframe,
+ * accounting for user-defined exclusions.
+ *
+ * Flow:
+ * - Normalizes date filters (year, month, custom range) into precise start and end boundaries.
+ * - Executes a raw SQL query to join ListeningHistory, the many-to-many TrackArtists table, and Artist details.
+ * - Aggregates data to calculate play counts and total duration per artist.
+ * - Filters out artists currently on the user's exclusion list based on platform ID.
+ * - Performs a second raw query to determine the total count of unique, non-excluded artists for pagination.
+ *
+ * Returns:
+ * - pagination: Object containing limit, offset, total count, and navigation metadata (next/previous).
+ * - topArtists: Array of artist objects including rank, play count, duration, and metadata.
+ *
+ * Errors:
+ * - 500 (inherited) if raw SQL execution fails or database connection is interrupted.
+ */
+
 export const getTopArtistsService = async (userId: string, filters: any) => {
   const { year, month, date, from, to, limit = 10, offset = 0 } = filters;
 

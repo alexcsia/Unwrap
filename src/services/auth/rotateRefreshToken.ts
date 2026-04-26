@@ -5,6 +5,27 @@ import { Prisma, type InternalAuthSessions } from "@prisma/client";
 import { saveRefreshToken } from "@/models/authSession.model";
 import bcrypt from "bcrypt";
 
+/**
+ * Service: rotateRefreshToken
+ *
+ * Rotates JWT refresh tokens and issues new access credentials.
+ *
+ * Flow:
+ * - Parses refresh token into sessionId and raw token
+ * - Validates session existence and expiry
+ * - Verifies hashed refresh token against stored value
+ * - Deletes old session
+ * - Creates new session and tokens inside a DB transaction
+ *
+ * Returns:
+ * - new accessToken
+ * - new refreshToken (sessionId + raw token)
+ *
+ * Security:
+ * - Invalid or expired sessions are removed
+ * - Token mismatch invalidates all user sessions
+ */
+
 export const rotateRefreshToken = async (oldToken: string) => {
   const { sessionId, rawToken } = parseRefreshToken(oldToken);
   const session = await getValidSession(prisma, sessionId);

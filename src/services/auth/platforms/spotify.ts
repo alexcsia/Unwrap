@@ -9,6 +9,27 @@ interface TokenExchangeResult {
   expires_in: number;
 }
 
+/**
+ * Service: exchangeSpotifyCode
+ *
+ * Exchanges Spotify OAuth code for access tokens.
+ *
+ * Flow:
+ * - Sends authorization code to Spotify token endpoint
+ * - Retrieves access_token, refresh_token, expires_in
+ * - Fetches Spotify user profile (/v1/me)
+ * - Stores or updates platform connection in database
+ *
+ * Behavior:
+ * - Throws error if token exchange fails
+ * - Throws error if Spotify profile fetch fails
+ *
+ * Returns:
+ * - access_token
+ * - refresh_token
+ * - expires_in
+ */
+
 export const exchangeSpotifyCode = async (
   userId: string,
   code: string,
@@ -98,6 +119,24 @@ export const exchangeSpotifyCode = async (
 
   return { access_token, refresh_token, expires_in };
 };
+
+/**
+ * Service: refreshAccessToken
+ *
+ * Refreshes Spotify access token using stored refresh token.
+ *
+ * Flow:
+ * - Sends refresh_token to Spotify token endpoint
+ * - Receives new access_token (and optionally refresh_token)
+ * - Updates stored connection in database
+ *
+ * Behavior:
+ * - Throws error if refresh request fails
+ * - Falls back to existing refresh token if not returned
+ *
+ * Returns:
+ * - new access_token
+ */
 
 export const refreshAccessToken = async (
   user: SpotifyUser,
