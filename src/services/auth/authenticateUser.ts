@@ -8,6 +8,10 @@ export const authenticateUser = async (
   email: string,
   password: string,
 ): Promise<{ accessToken: string; refreshToken: string }> => {
+  if (!email) {
+    throw new ApiError(400, "BAD_REQUEST", `User email undefined`);
+  }
+
   const user = await findUserByEmail(email);
   if (!user)
     throw new ApiError(401, "UNAUTHENTICATED", `User email ${email} not found`);
