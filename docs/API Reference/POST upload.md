@@ -34,13 +34,32 @@ Requires valid JWT (via `accessToken` cookie).
 
 ### Errors
 
-| Status | Code                 | Description                       |
-| ------ | -------------------- | --------------------------------- |
-| 401    | UNAUTHORIZED         | Missing/invalid user              |
-| 400    | INVALID_UPLOAD       | Invalid ZIP or malformed data     |
-| 400    | UNSUPPORTED_PLATFORM | Platform not supported            |
-| 400    | NO_FILES_FOUND       | No file provided                  |
-| 500    | INTERNAL_ERROR       | File processing or server failure |
+### Auth errors
+
+| Status | Code         | Description                       |
+| ------ | ------------ | --------------------------------- |
+| 401    | UNAUTHORIZED | User session not found or expired |
+
+### Upload validation errors
+
+| Status | Code                 | Description                                      |
+| ------ | -------------------- | ------------------------------------------------ |
+| 400    | UNSUPPORTED_PLATFORM | Platform not supported                           |
+| 400    | INVALID_UPLOAD       | Spotify folder missing or invalid file structure |
+| 400    | INVALID_UPLOAD       | Malformed JSON batch detected during validation  |
+
+### Spotify / External API errors
+
+| Status | Code              | Description                                    |
+| ------ | ----------------- | ---------------------------------------------- |
+| 502    | SPOTIFY_API_ERROR | Failed to fetch Spotify listening history      |
+| 429    | SPOTIFY_API_ERROR | Rate limit exceeded (handled with retry delay) |
+
+### Processing errors
+
+| Status | Code           | Description                                                    |
+| ------ | -------------- | -------------------------------------------------------------- |
+| 500    | INTERNAL_ERROR | File system failure, queue failure, or unexpected worker crash |
 
 ---
 
