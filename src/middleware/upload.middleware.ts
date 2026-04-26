@@ -3,6 +3,20 @@ import path from "path";
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
 
+/**
+ * Middleware: validateZipUpload
+ *
+ * Validates uploaded file for history ingestion.
+ *
+ * Requirements:
+ * - File must exist
+ * - File must be a ZIP archive
+ *
+ * Behavior:
+ * - Deletes invalid files
+ * - Throws error if validation fails
+ */
+
 export const validateZipUpload = (
   req: Request,
   _res: Response,
@@ -27,6 +41,18 @@ export const validateZipUpload = (
 
   next();
 };
+
+/**
+ * Middleware: prepareUploadPaths
+ *
+ * Prepares filesystem paths for uploaded history files.
+ * Used before ingestion processing.
+ *
+ * Behavior:
+ * - Creates extracted folder path
+ * - Attaches filePath and extractedPath to req.filePaths
+ * - Throws error if upload path is missing
+ */
 
 export const prepareUploadPaths = (
   req: Request,

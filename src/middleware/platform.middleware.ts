@@ -1,6 +1,17 @@
 import { ApiError } from "@/errors/ApiError";
-
 import type { Request, Response, NextFunction } from "express";
+
+/**
+ * Middleware: validatePlatform
+ *
+ * Validates streaming platform from request parameters.
+ * Ensures platform is supported before request continues.
+ *
+ * Behavior:
+ * - Throws 400 if platform is missing
+ * - Throws 400 if platform is unsupported
+ * - Attaches platform to req.platform
+ */
 
 const allowedPlatforms = ["spotify", "tidal", "apple_music"];
 

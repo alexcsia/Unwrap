@@ -2,6 +2,21 @@ import jwt from "jsonwebtoken";
 import { ApiError } from "@/errors/ApiError";
 import type { Request, Response, NextFunction } from "express";
 
+/**
+ * Middleware: checkAuth
+ *
+ * Authenticates requests using JWT access token.
+ * Reads accessToken from cookies and verifies it.
+ * Attaches user id to req.user on success.
+ *
+ * Development mode:
+ * - Skips verification and sets a mock user id.
+ *
+ * Errors:
+ * - 401 if access token is missing
+ * - 401 if token is invalid or expired
+ */
+
 export const checkAuth = async (
   req: Request,
   res: Response,
@@ -22,7 +37,6 @@ export const checkAuth = async (
       sub: string;
     };
 
-    console.log("decoded", decoded);
     req.user = { id: decoded.sub };
     next();
   } catch (error) {
