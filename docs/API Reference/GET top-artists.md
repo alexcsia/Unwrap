@@ -70,7 +70,3 @@ Requires valid JWT (via `accessToken` cookie).
 - Results are sorted by play count (descending)
 - Excluded tracks/artists are automatically filtered out
 - Pagination is offset-based
-
-```
-
-```

@@ -42,6 +42,4 @@ Not required.
 
 ### Notes
 
-- Password is hashed using bcrypt before storage
 - Email must be unique
-- Response excludes sensitive fields (e.g., password hash)

@@ -1,4 +1,4 @@
-## POST `/api/history/upload`
+## POST `/api/history/spotify/upload`
 
 Upload extended listening history for ingestion.
 
@@ -65,13 +65,9 @@ Requires valid JWT (via `accessToken` cookie).
 
 ### Notes
 
-- Upload must contain **extended streaming history**, not summary data
+- Upload must contain the **extended streaming history** in JSON format
 - ZIP is extracted and processed server-side
 - Data is validated before ingestion (schema validation)
 - Tracks are processed in **batches** and sent to a background queue
 - Artist metadata may be enriched asynchronously after upload
 - Temporary files are deleted after processing
-
-```
-
-```
