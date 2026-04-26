@@ -19,9 +19,11 @@ export const checkAuth = async (
 
   try {
     const decoded = jwt.verify(accessToken, process.env.JWT_SECRET!) as {
-      userId: string;
+      sub: string;
     };
-    req.user = { id: decoded.userId };
+
+    console.log("decoded", decoded);
+    req.user = { id: decoded.sub };
     next();
   } catch (error) {
     next(new ApiError(401, "UNAUTHORIZED", "Invalid or expired token"));
