@@ -8,6 +8,7 @@
     "@types/cors": "^2.8.19",
     "@types/jsonwebtoken": "^9.0.10",
     "bun-types": "^1.3.12",
+    "cross-env": "^10.1.0",
     "prisma-markdown": "^4.0.0"
   },
   "prisma": {
@@ -16,7 +17,7 @@
   "scripts": {
     "dev": "bun run --watch src/app.ts",
     "dev:worker": "bun run --watch src/workers/index.ts",
-    "build": "bun build src/app.ts --outdir dist --target node && bun build src/workers/index.ts --outdir dist/workers --target node",
+    "build": "cross-env NODE_ENV=production bun build src/app.ts --outdir dist --target node && cross-env NODE_ENV=production bun build src/workers/index.ts --outdir dist/workers --target node",
     "start": "bunx pm2 start ecosystem.config.cjs --no-daemon",
     "start:worker": "bun dist/workers/index.js",
     "test": "bun test"
