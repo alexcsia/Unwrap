@@ -52,6 +52,14 @@ app.use("/api/exclusions", exclusionRoutes);
 app.use("/api/time-listened", timeListenedRoutes);
 app.use("/", userRoutes);
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use(errorMiddleware);
 
 app.listen(PORT, () => {
