@@ -32,6 +32,7 @@ const CACHE_TTL_SEC = 7 * 24 * 3600; // 7 days
 const worker = new Worker<HistorySyncJobData>(
   "history-sync",
   async (job: Job<HistorySyncJobData>) => {
+    console.log("[Worker] Starting job", job.id);
     const { userId, entry: rawEntry } = job.data;
 
     let lockKey: string | null = null;

@@ -59,6 +59,7 @@ export const spotifyUploadHandler = async (
     const jsonFiles = getJsonFiles(historyDir);
     let totalEntriesProcessed = 0;
 
+    console.log(jsonFiles.length, "JSON files found in Spotify history upload");
     for (const file of jsonFiles) {
       const entries = readListeningEntries(historyDir, file);
       await processSpotifyEntries(entries, userId);

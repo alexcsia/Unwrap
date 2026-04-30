@@ -22,13 +22,8 @@ export const uploadHistoryController = async (
   const { platform } = req;
 
   const user = req.user;
-
-  if (!user) {
-    throw new ApiError(
-      401,
-      "UNAUTHORIZED",
-      "User session not found or expired",
-    );
+  if (!user || !user.id) {
+    throw new ApiError(401, "UNAUTHORIZED", "User ID missing from session");
   }
 
   const { filePath, extractedPath } = req.filePaths!;

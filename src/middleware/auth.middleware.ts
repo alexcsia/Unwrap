@@ -36,7 +36,6 @@ export const checkAuth = async (
     const decoded = jwt.verify(accessToken, process.env.JWT_SECRET!) as {
       sub: string;
     };
-
     req.user = { id: decoded.sub };
     next();
   } catch (error) {
