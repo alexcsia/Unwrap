@@ -8,7 +8,11 @@ Retrieve all exclusions for the authenticated user.
 
 Requires valid JWT (via `accessToken` cookie).
 
----
+## Example request
+
+```
+curl -X GET http://localhost:3000/api/exclusions -H "Cookie: accessToken=YOUR_ACCESS_TOKEN"
+```
 
 ## Response 200 OK
 

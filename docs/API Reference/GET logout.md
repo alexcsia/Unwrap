@@ -14,7 +14,12 @@ Requires valid JWT (via `accessToken` cookie).
 
 No request body required.
 
----
+## Request example
+
+```
+ curl -X POST http://localhost:3000/auth/logout -H "Cookie: accessToken=YOUR_TOKEN"
+
+```
 
 ## Success Response
 

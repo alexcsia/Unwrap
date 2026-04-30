@@ -1,6 +1,7 @@
 # GET /auth/callback
 
 Handle Spotify OAuth callback and complete account connection.
+This endpoint is typically called by Spotify only.
 
 ---
 

@@ -1,10 +1,10 @@
-# POST /auth/refresh
+# GET /auth/refresh
 
 Rotate refresh tokens and issue new access credentials.
 
 ## Authentication
 
-Requires `refreshToken` cookie.
+Requires a `refreshToken` cookie.
 
 ---
 
@@ -19,6 +19,12 @@ Uses cookie:
 | refreshToken | yes      | Current refresh token in format `sessionId.token` |
 
 ---
+
+## Request example
+
+```
+curl -i -X GET http://localhost:3000/auth/refresh -H "Cookie: refreshToken=YOUR_COOKIE"
+```
 
 ## Response 200 OK
 

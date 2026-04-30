@@ -28,6 +28,12 @@ You may also send one of:
 
 ---
 
+## Example request
+
+```
+curl -X POST http://localhost:3000/api/exclusions -H "Content-Type: application/json" -H "Cookie: accessToken=YOUR_ACCESS_TOKEN" -d "{\"type\":\"artist\",\"targetId\":\"ARTIST_ID_HERE\"}"
+```
+
 ## Response 201 Created
 
 ```json

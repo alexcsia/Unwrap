@@ -20,7 +20,11 @@ Requires valid JWT (via `accessToken` cookie).
 | limit  | number | no       | Default: `10`                 |
 | offset | number | no       | Default: `0`                  |
 
----
+### Example request
+
+```
+curl -i -X GET http://localhost:3000/api/top-artists -H "Cookie: accessToken=YOUR_TOKEN"
+```
 
 ### Validation Rules
 

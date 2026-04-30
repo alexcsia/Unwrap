@@ -16,24 +16,44 @@ Requires valid JWT (via `accessToken` cookie).
 | -------- | ------ | -------- | ----------------------------------- |
 | platform | string | yes      | Streaming platform (e.g. `spotify`) |
 
----
+## Request example
+
+```
+curl -X GET http://localhost:3000/api/history/spotify/recent -H "Cookie: accessToken=YOUR_TOKEN"
+```
 
 ## Response 200 OK
 
 ```json
 {
-  "history": [
-    {
-      "id": "string",
-      "trackId": "string",
-      "trackName": "string",
-      "artistName": "string",
-      "albumName": "string",
-      "playedAt": "ISO string",
-      "durationMs": 123456,
-      "source": "string"
-    }
-  ]
+  "history": {
+    "pagination": {
+      "limit": 50,
+      "offset": 0,
+      "total": 50,
+      "hasMore": false,
+      "nextOffset": null,
+      "previousOffset": null
+    },
+    "history": [
+      {
+        "id": "string",
+        "trackId": "string",
+        "trackName": "string",
+        "artistName": "string",
+        "albumName": "string",
+        "playedAt": "ISO string",
+        "durationMs": 123456,
+        "source": "string",
+        "artists": [
+          {
+            "platformId": "string",
+            "name": "string"
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 

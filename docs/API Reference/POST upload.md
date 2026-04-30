@@ -20,7 +20,11 @@ Requires valid JWT (via `accessToken` cookie).
 | file     | file   | yes      | ZIP archive with listening data      |
 | platform | string | yes      | Platform identifier (e.g. `spotify`) |
 
----
+### Request example
+
+``curl -X POST http://localhost:3000/api/history/spotify/upload -H "Cookie: accessToken=YOUR_TOKEN" -F "history=@C:\path\to\file\my_spotify_data.zip;type=application/zip" -F "platform=spotify"
+
+````
 
 ### Response `200 OK`
 
@@ -28,7 +32,7 @@ Requires valid JWT (via `accessToken` cookie).
 {
   "message": "Listening history uploaded successfully"
 }
-```
+````
 
 ---
 

@@ -27,7 +27,11 @@ Requires valid JWT (via `accessToken` cookie).
 - `month` requires `year`
 - `from` and `to` must be provided together
 
----
+### Example request
+
+```
+curl -i -X GET http://localhost:3000/api/time-listened -H "Cookie: accessToken=YOUR_TOKEN"
+```
 
 ### Response `200 OK`
 
