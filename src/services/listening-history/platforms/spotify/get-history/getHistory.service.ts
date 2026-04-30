@@ -56,7 +56,7 @@ export const spotifyGetHistoryHandler = async (
   const userSpotify = await getPlatformConnection(userId, "spotify");
 
   if (!userSpotify) {
-    throw new ApiError(404, "NOT_FOUND", "No Spotify connection found.");
+    throw new ApiError(403, "FORBIDDEN", "No Spotify connection found.");
   }
 
   const history = await fetchListeningHistory(userSpotify);

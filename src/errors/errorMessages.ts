@@ -12,6 +12,7 @@ export const ERROR_MESSAGES = {
   NOT_FOUND: "Requested resource not found",
   CACHE_LOCKED: "Cache locked by another process, please try again later",
   CONFLICT: "Email already in use",
+  FORBIDDEN: "You do not have permission to perform this action",
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
