@@ -2,27 +2,24 @@
 
 Unwrap is a multi-platform stats website. It aims to compete with Spotify Wrapped / Apple Music Replay / Soundcloud Playback by offering an alternative where users can see their combined statistics from all the different platforms they use. It offers customisability so that any statistic that doesn’t feel representative can be deleted.
 
-`This project is for educational demonstration only. You may view and fork the code for reference, but you may not distribute, sublicense, or sell copies of this work without explicit permission.`
+## Features / Use cases
 
-## Features
+    Multi-platform support: Connect multiple music streaming accounts like Spotify, Apple Music, etc. and see combined listening statistics. (Currently only has support for Spotify)
 
-- Multi-platform support: Connect multiple music streaming accounts (Spotify, Apple Music, Last.fm, etc.) and see combined listening statistics.
+    Custom exclusion engine: Rule-based filtering to hide specific artists or tracks from aggregation.
 
-- Unified stats: View top artists, tracks, genres, and listening trends across all your platforms in one place.
+    Flexible date filtering: Support for year, month, day, and custom range queries.
 
-- Customizable statistics: Exclude specific artists, tracks, or genres that you feel don't represent your true listening habits.
-
-- Date-range analysis: See your listening behaviour for any time period
+    High-volume processing: Background worker (BullMQ) capable of parsing thousands of history entries via ZIP uploads.
 
 ## Prerequisites
 
-Bun 1.3.9 (or above): The primary runtime and package manager.
-
-PostgreSQL 15+ (or MySQL): A running database instance.
-
-Spotify Developer Account
-
-Node.js LTS (Optional but recommended): For maximum compatibility
+- **Bun** — used to run and build the project
+- **Docker** (optional but recommended for PostgreSQL) — easiest way to run a database
+- **Redis** — used for background job queues
+- **PostgreSQL** — main relational database
+- **Prisma** — ORM used to interact with the database
+- **WSL** (required for Redis on Windows) — provides a Linux environment
 
 ## Installation and quick start
 
@@ -30,7 +27,7 @@ Node.js LTS (Optional but recommended): For maximum compatibility
 
 Before starting, create an app in the Spotify Developer Dashboard.
 
-    Redirect URI: Set this to http://localhost:3000/api/auth/spotify/callback (or your local equivalent).
+    Redirect URI: Set this to http://localhost:3000/api/auth/spotify/callback
 
 2. Clone the repository
 
@@ -47,17 +44,32 @@ bun install
 4. Create a .env file and set the following environment variables:
 
 ```
-DATABASE_URL
-SPOTIFY_CLIENT_ID
-SPOTIFY_CLIENT_SECRET
-SPOTIFY_CALLBACK_URI
-SESSION_SECRET
-PORT
+DATABASE_URL="postgresql://postgres:admin@localhost:5432/unwrap"
+SPOTIFY_CLIENT_ID = your-id
+SPOTIFY_CLIENT_SECRET = your-secret
+SPOTIFY_CALLBACK_URI= http://127.0.0.1:3000/auth/callback
+PORT = 3000
+NODE_ENV = development
+MOCK_SPOTIFY = true
+JWT_SECRET = your-secret
+REDIS_URL=127.0.0.1:6379
 ```
 
-5. Start the backend
+5. Start the backend and worker in dev mode
+
+Make sure you have an instance of both Redis and Postgres
 
 ```
-cd src
-bun start app.ts
+bun run dev
+bun run dev:worker
 ```
+
+## Documentation
+
+- [Getting started](./docs/guides/Getting%20started.md)
+- [Unwrap overview](./docs/conceptual/Unwrap%20explained.md)
+- [Analytics guide](./docs/guides/Analytics%20endpoints.md)
+- [Exclusions](./docs/conceptual/Customising%20analytics.md)
+- [Contributor's guide](./Contributor%20guide.md)
+
+`This project is for educational demonstration only. You may view and fork the code for reference, but you may not distribute, sublicense, or sell copies of this work without explicit permission.`
