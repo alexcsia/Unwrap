@@ -27,4 +27,5 @@ export const logoutController = async (req: Request, res: Response) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
   });
+  res.status(200).json({ message: "Successfully logged out" });
 };
