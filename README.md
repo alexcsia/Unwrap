@@ -20,7 +20,6 @@ Unwrap is a multi-platform stats website. It aims to compete with Spotify Wrappe
 - **Docker** (optional but recommended for PostgreSQL) — easiest way to run a database
 - **Redis** — used for background job queues
 - **PostgreSQL** — main relational database
-- **Prisma** — ORM used to interact with the database
 - **WSL** (required for Redis on Windows) — provides a Linux environment
 
 ## Installation and quick start
@@ -74,4 +73,4 @@ bun run dev:worker
 - [Exclusions](./docs/conceptual/Customising%20analytics.md)
 - [Contributor's guide](./Contributor%20guide.md)
 
-`This project is for educational demonstration only. You may view and fork the code for reference, but you may not distribute, sublicense, or sell copies of this work without explicit permission.`
+` You may view and fork the code for reference, but you may not distribute, sublicense, or sell copies of this work without explicit permission.`

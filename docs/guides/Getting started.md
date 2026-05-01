@@ -7,7 +7,6 @@ This guide walks you through setting up the backend locally, including the datab
 Make sure you have the following installed:
 
 - **Bun** (latest version) — used to run and build the project
-- **Node.js** — required for compatibility with some tooling
 - **Docker** (optional but recommended for PostgreSQL) — easiest way to run a database
 - **Redis** — used for background job queues
 - **PostgreSQL** — main relational database

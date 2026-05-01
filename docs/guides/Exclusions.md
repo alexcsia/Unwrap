@@ -4,19 +4,19 @@ This guide shows you how to use the Unwrap API to exclude artists, tracks, or ge
 
 ## Prerequisites
 
-- The Unwrap backend is running locally (see the [Setup Guide](./setup.md)).
+- The Unwrap backend is running locally (see the [Getting started](../Getting%20started.md)).
 - You have a valid user session. The instructions below assume you are already authenticated with a music streaming platform (e.g., via Spotify OAuth).
 
 ## Step‑by‑Step Instructions
 
-### 1. Add an Exclusion (Artist or Track)
+### 1. Add an exclusion (Artist or Track)
 
 To mark a statistic as excluded, send a `POST` request to `/api/exclusions` with a JSON body identifying the entity you want to exclude.
 
 - **Endpoint:** `POST /api/exclusions`
 - **Authentication:** Required
 
-#### Example: Excluding an Artist
+#### Example: Excluding an artist
 
 ```json
 {
@@ -25,7 +25,7 @@ To mark a statistic as excluded, send a `POST` request to `/api/exclusions` with
 }
 ```
 
-#### Example: Excluding a Track
+#### Example: Excluding a track
 
 ```json
 {
@@ -45,7 +45,7 @@ To mark a statistic as excluded, send a `POST` request to `/api/exclusions` with
 
 The `id` is a unique identifier for this exclusion, and `excludedAt` is the timestamp when it was created.
 
-### 2. List All Your Exclusions
+### 2. List all your exclusions
 
 To see a complete list of everything you have excluded, send a `GET` request to `/api/exclusions`.
 
@@ -81,7 +81,7 @@ To see a complete list of everything you have excluded, send a `GET` request to 
 
 The response groups exclusions by type, making it easy to review and manage them.
 
-### 3. Remove an Exclusion
+### 3. Remove an exclusion
 
 If you change your mind and want a previously excluded entity to appear in your statistics again, you can delete the exclusion.
 
@@ -89,7 +89,7 @@ If you change your mind and want a previously excluded entity to appear in your 
 - **Authentication:** Required
 - **Query Parameters:** `type` (artist/track) and `id` (the platform‑specific ID)
 
-#### Example: Removing an Artist Exclusion
+#### Example: Removing an Artist exclusion
 
 ```
 DELETE /api/exclusions?type=artist&id=spotify:artist:123
