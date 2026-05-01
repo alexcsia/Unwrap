@@ -55,9 +55,29 @@ JWT_SECRET = your-secret
 REDIS_URL=127.0.0.1:6379
 ```
 
-5. Start the backend and worker in dev mode
+5. Start the backend, databases and worker in dev mode
 
-Make sure you have an instance of both Redis and Postgres
+Make sure you have an instance of both Redis and Postgres running.
+
+Initialize Prisma and sync your database schema:
+
+```bash
+bunx prisma generate
+```
+
+Apply migrations:
+
+```bash
+bunx prisma migrate dev --name init
+```
+
+Start redis:
+
+```
+sudo service redis-cli start
+```
+
+Start the app:
 
 ```
 bun run dev
