@@ -6,6 +6,8 @@ Unwrap is a multi-platform stats website. It aims to compete with Spotify Wrappe
 
     Multi-platform support: Connect multiple music streaming accounts like Spotify, Apple Music, etc. and see combined listening statistics. (Currently only has support for Spotify)
 
+    Authorization: Create an account and login securely via JWT
+
     Custom exclusion engine: Rule-based filtering to hide specific artists or tracks from aggregation.
 
     Flexible date filtering: Support for year, month, day, and custom range queries.
