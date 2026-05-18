@@ -1,28 +1,5 @@
 import prisma from "@/utils/prisma.util";
-
-/**
- * Service: getTopTracksService
- *
- * Retrieves a ranked list of a user's most-played tracks within a specific timeframe,
- * filtering out tracks or artists based on user-defined exclusions.
- *
- * Flow:
- * - Normalizes date filters (year, month, custom range) into precise start and end boundaries.
- * - Fetches user exclusion lists for both "track" and "artist" types.
- * - Aggregates listening history using Prisma's `groupBy`, filtering by date and excluding
- * specific track IDs or tracks featuring excluded artists.
- * - Performs a secondary query to fetch artist names for the top tracks (since `groupBy`
- * does not support relation joins).
- * - Executes a raw SQL query to determine the total count of unique, non-excluded tracks
- * to provide accurate pagination metadata.
- *
- * Returns:
- * - pagination: Metadata including limits, offsets, total counts, and navigation states.
- * - topTracks: Array of track objects including rank, play count, artist names, and source metadata.
- *
- * Errors:
- * - 500 (inherited) if Prisma aggregation or the raw SQL count query fails.
- */
+import { Prisma } from "@prisma/client";
 
 export const getTopTracksService = async (userId: string, filters: any) => {
   const { year, month, date, from, to, limit = 10, offset = 0 } = filters;
@@ -58,83 +35,61 @@ export const getTopTracksService = async (userId: string, filters: any) => {
     .filter((e) => e.type === "artist")
     .map((e) => e.targetId);
 
-  const whereClause = {
-    userId,
-    playedAt: { gte: startDate, lt: endDate },
+  const result = await prisma.$queryRaw<
+    {
+      platformTrackId: string;
+      trackName: string;
+      albumName: string;
+      source: string | null;
+      playCount: bigint;
+      durationMs: bigint | null;
+      uploadedAt: Date | null;
+      totalCount: bigint;
+      artistNames: string;
+    }[]
+  >`
+    SELECT 
+      lh."platformTrackId",
+      lh."trackName",
+      lh."albumName",
+      lh."source",
+      COUNT(lh.id) AS "playCount",
+      MAX(lh."durationMs") AS "durationMs",
+      MAX(lh."uploadedAt") AS "uploadedAt",
+      COUNT(*) OVER() AS "totalCount",
+      COALESCE(STRING_AGG(DISTINCT a.name, ', '), '') AS "artistNames"
+    FROM "ListeningHistory" lh
+    LEFT JOIN "_TrackArtists" ta ON ta."B" = lh.id
+    LEFT JOIN "Artist" a ON a.id = ta."A"
+    WHERE lh."userId" = ${userId}
+      AND lh."playedAt" >= ${startDate}
+      AND lh."playedAt" < ${endDate}
+      ${
+        excludedTrackIds.length
+          ? Prisma.sql`AND lh."platformTrackId" NOT IN (${Prisma.join(
+              excludedTrackIds,
+            )})`
+          : Prisma.empty
+      }
+      ${
+        excludedArtistIds.length
+          ? Prisma.sql`
+            AND NOT EXISTS (
+              SELECT 1
+              FROM "_TrackArtists" ta2
+              JOIN "Artist" a2 ON a2.id = ta2."A"
+              WHERE ta2."B" = lh.id
+                AND a2."platformId" = ANY(${excludedArtistIds})
+            )
+          `
+          : Prisma.empty
+      }
+    GROUP BY lh."platformTrackId", lh."trackName", lh."albumName", lh."source"
+    ORDER BY COUNT(lh.id) DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
 
-    platformTrackId: { notIn: excludedTrackIds },
-
-    artists: {
-      none: {
-        platformId: { in: excludedArtistIds },
-      },
-    },
-  };
-
-  const topTracksQuery = await prisma.listeningHistory.groupBy({
-    by: ["platformTrackId", "trackName", "albumName", "source"],
-    where: whereClause,
-    _count: { platformTrackId: true },
-    _max: { durationMs: true, uploadedAt: true },
-    orderBy: { _count: { platformTrackId: "desc" } },
-    take: limit,
-    skip: offset,
-  });
-
-  const trackIds = topTracksQuery.map((t) => t.platformTrackId);
-
-  const tracksWithArtists = await prisma.listeningHistory.findMany({
-    where: {
-      platformTrackId: { in: trackIds },
-    },
-    select: {
-      platformTrackId: true,
-      artists: { select: { name: true } },
-    },
-    distinct: ["platformTrackId"],
-  });
-
-  const artistMap = new Map(
-    tracksWithArtists.map((t) => [
-      t.platformTrackId,
-      t.artists.map((a) => a.name),
-    ]),
-  );
-
-  const totalResultRaw = await prisma.$queryRaw<{ count: bigint }[]>`
-  SELECT COUNT(DISTINCT lh."platformTrackId") as count
-  FROM "ListeningHistory" lh
-  WHERE lh."userId" = ${userId}
-    AND lh."playedAt" >= ${startDate}
-    AND lh."playedAt" < ${endDate}
-    
-    AND lh."platformTrackId" NOT IN (
-      SELECT "targetId" FROM "Exclusion" WHERE "userId" = ${userId} AND "type" = 'track'
-    )
-    
-    AND NOT EXISTS (
-      SELECT 1 FROM "_TrackArtists" ta
-      JOIN "Artist" a ON a.id = ta."A"
-      WHERE ta."B" = lh.id
-      AND a."platformId" IN (
-        SELECT "targetId" FROM "Exclusion" WHERE "userId" = ${userId} AND "type" = 'artist'
-      )
-    )
-`;
-
-  const total = Number(totalResultRaw[0]?.count ?? 0);
-
-  const topTracks = topTracksQuery.map((track, index) => ({
-    rank: offset + index + 1,
-    trackId: track.platformTrackId,
-    trackName: track.trackName,
-    artistName: (artistMap.get(track.platformTrackId) || []).join(", "),
-    albumName: track.albumName,
-    plays: track._count.platformTrackId,
-    durationMs: track._max.durationMs ?? 0,
-    source: track.source,
-    uploadedAt: track._max.uploadedAt?.toISOString() ?? "",
-  }));
+  const total = Number(result[0]?.totalCount ?? 0);
 
   return {
     pagination: {
@@ -145,6 +100,16 @@ export const getTopTracksService = async (userId: string, filters: any) => {
       nextOffset: offset + limit < total ? offset + limit : null,
       previousOffset: offset - limit >= 0 ? offset - limit : null,
     },
-    topTracks,
+    topTracks: result.map((track, index) => ({
+      rank: offset + index + 1,
+      trackId: track.platformTrackId,
+      trackName: track.trackName,
+      artistName: track.artistNames,
+      albumName: track.albumName,
+      plays: Number(track.playCount),
+      durationMs: Number(track.durationMs ?? 0),
+      source: track.source ?? "",
+      uploadedAt: track.uploadedAt?.toISOString() ?? "",
+    })),
   };
 };

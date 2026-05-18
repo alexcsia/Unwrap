@@ -22,7 +22,7 @@ export const saveListeningHistory = async (data: ListeningHistoryDTO) => {
 
         artists: {
           connectOrCreate: data.artists
-            .filter((artist) => artist.platformId && artist.name) // ✅ HARD GUARD
+            .filter((artist) => artist.platformId && artist.name)
             .map((artist) => ({
               where: { platformId: artist.platformId },
               create: {
