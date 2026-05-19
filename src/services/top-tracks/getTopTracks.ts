@@ -59,8 +59,8 @@ export const getTopTracksService = async (userId: string, filters: any) => {
       COUNT(*) OVER() AS "totalCount",
       COALESCE(STRING_AGG(DISTINCT a.name, ', '), '') AS "artistNames"
     FROM "ListeningHistory" lh
-    LEFT JOIN "_TrackArtists" ta ON ta."B" = lh.id
-    LEFT JOIN "Artist" a ON a.id = ta."A"
+    JOIN "_TrackArtists" ta ON ta."B" = lh.id
+     JOIN "Artist" a ON a.id = ta."A"
     WHERE lh."userId" = ${userId}
       AND lh."playedAt" >= ${startDate}
       AND lh."playedAt" < ${endDate}
