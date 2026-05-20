@@ -15,14 +15,22 @@ export const addExclusionController = async (
   next: NextFunction,
 ) => {
   try {
+    const type = req.body.type || req.query.type;
+    const targetId =
+      req.body.artistId ||
+      req.body.trackId ||
+      req.body.id ||
+      req.body.targetId ||
+      req.query.artistId ||
+      req.query.trackId ||
+      req.query.id ||
+      req.query.targetId;
+
     const result = await ExclusionService.addExclusionService(req.user!.id, {
-      type: req.body.type,
-      targetId:
-        req.body.artistId ||
-        req.body.trackId ||
-        req.body.id ||
-        req.body.targetId,
+      type: type as "artist" | "track",
+      targetId: targetId as string,
     });
+
     res.status(201).json(result);
   } catch (e) {
     next(e);
