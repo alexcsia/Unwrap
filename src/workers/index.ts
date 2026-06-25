@@ -1,1 +1,2 @@
 import "./historyWorker";
+import "./deleteWorker";
