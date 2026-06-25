@@ -23,7 +23,6 @@ export const checkAuth = async (
   next: NextFunction,
 ) => {
   if (process.env.NODE_ENV === "development") {
-    console.log("DEV");
     req.user = { id: "1234" };
     return next();
   }
