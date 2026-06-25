@@ -10,6 +10,7 @@ import userRoutes from "@/routes/user.routes";
 import { errorMiddleware } from "@/middleware/error.middleware";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -17,6 +18,7 @@ app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 app.use(cookieParser());
+app.use(helmet());
 
 app.use(
   cors({
