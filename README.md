@@ -74,7 +74,7 @@ bunx prisma migrate dev --name init
 Start redis:
 
 ```
-sudo service redis-cli start
+sudo service redis-service start
 ```
 
 Start the app:
