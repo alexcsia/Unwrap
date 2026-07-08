@@ -14,19 +14,15 @@ export const addExclusionController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  try {
-    const type = req.body.type || req.query.type;
-    const targetId = req.body.targetId;
+  const type = req.body.type || req.query.type;
+  const targetId = req.body.targetId;
 
-    const result = await ExclusionService.addExclusionService(req.user!.id, {
-      type: type as "artist" | "track",
-      targetId: targetId as string,
-    });
+  const result = await ExclusionService.addExclusionService(req.user!.id, {
+    type: type as "artist" | "track",
+    targetId: targetId as string,
+  });
 
-    res.status(201).json(result);
-  } catch (e) {
-    next(e);
-  }
+  res.status(201).json(result);
 };
 
 /**
@@ -42,14 +38,10 @@ export const deleteExclusionController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  try {
-    const { type, targetId } = req.query as { type: string; targetId: string };
+  const { type, targetId } = req.query as { type: string; targetId: string };
 
-    await ExclusionService.removeExclusionService(req.user!.id, type, targetId);
-    res.status(204).send();
-  } catch (e) {
-    next(e);
-  }
+  await ExclusionService.removeExclusionService(req.user!.id, type, targetId);
+  res.status(204).send();
 };
 
 /**
@@ -64,10 +56,6 @@ export const getExclusionsController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  try {
-    const result = await ExclusionService.getExclusionsService(req.user!.id);
-    res.json(result);
-  } catch (e) {
-    next(e);
-  }
+  const result = await ExclusionService.getExclusionsService(req.user!.id);
+  res.json(result);
 };
