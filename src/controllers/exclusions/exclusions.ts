@@ -16,15 +16,7 @@ export const addExclusionController = async (
 ) => {
   try {
     const type = req.body.type || req.query.type;
-    const targetId =
-      req.body.artistId ||
-      req.body.trackId ||
-      req.body.id ||
-      req.body.targetId ||
-      req.query.artistId ||
-      req.query.trackId ||
-      req.query.id ||
-      req.query.targetId;
+    const targetId = req.body.targetId;
 
     const result = await ExclusionService.addExclusionService(req.user!.id, {
       type: type as "artist" | "track",
@@ -45,15 +37,15 @@ export const addExclusionController = async (
  * Deletes the matching exclusion record.
  * Returns 204 on success.
  */
-
 export const deleteExclusionController = async (
-  req: Request<{}, {}, {}, { type: string; id: string }>,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const { type, id } = req.query;
-    await ExclusionService.removeExclusionService(req.user!.id, type, id);
+    const { type, targetId } = req.query as { type: string; targetId: string };
+
+    await ExclusionService.removeExclusionService(req.user!.id, type, targetId);
     res.status(204).send();
   } catch (e) {
     next(e);
