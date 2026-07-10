@@ -22,6 +22,7 @@
         "express": "^4.21.2",
         "express-async-errors": "^3.1.1",
         "express-rate-limit": "^8.3.1",
+        "helmet": "^8.2.0",
         "jsonwebtoken": "^9.0.3",
         "msw": "^2.12.10",
         "multer": "^1.4.5-lts.2",
@@ -794,6 +795,8 @@
     "hasown": ["hasown@2.0.2", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ=="],
 
     "headers-polyfill": ["headers-polyfill@4.0.3", "", {}, "sha512-IScLbePpkvO846sIwOtOTDjutRMWdXdJmXdMvk6gCBHxFO8d+QKOQedyZSxFTTFYRSmlgSTDtXqqq4pcenBXLQ=="],
+
+    "helmet": ["helmet@8.2.0", "", {}, "sha512-DRgTIUgnWcJ62KyarxxziuqYxKGnR6Rgg19BlbucN/dpmJbl1XOit6qvoOX0ZT+HhWe5OUVhU/a1zpGyc1xA0Q=="],
 
     "highlight.js": ["highlight.js@10.7.3", "", {}, "sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A=="],
 
