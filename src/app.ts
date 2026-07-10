@@ -1,16 +1,10 @@
 import express from "express";
 import "express-async-errors";
-import authRoutes from "./routes/auth.routes";
-import historyRoutes from "@/routes/history.routes";
-import topTracksRoutes from "@/routes/topTracks.routes";
-import topArtistsRoutes from "@/routes/topArtists.routes";
-import exclusionRoutes from "@/routes/exclusions.routes";
-import timeListenedRoutes from "@/routes/timeListened.routes";
-import userRoutes from "@/routes/user.routes";
 import { errorMiddleware } from "@/middleware/error.middleware";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import routes from "./routes";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -46,13 +40,7 @@ if (
 app.use(express.json({ limit: "40kb" }));
 app.use(express.urlencoded({ limit: "40kb", extended: true }));
 
-app.use("/auth", authRoutes);
-app.use("/api/history", historyRoutes);
-app.use("/api/top-tracks", topTracksRoutes);
-app.use("/api/top-artists", topArtistsRoutes);
-app.use("/api/exclusions", exclusionRoutes);
-app.use("/api/time-listened", timeListenedRoutes);
-app.use("/", userRoutes);
+app.use(routes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({

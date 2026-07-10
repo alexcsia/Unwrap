@@ -7,9 +7,10 @@ import { timeListenedSchema } from "@/schemas";
 
 const router = express.Router();
 
+router.use(generalLimiter);
+
 router.get(
   "/",
-  generalLimiter,
   validateBody(timeListenedSchema),
   checkAuth,
   timeListenedController,

@@ -7,9 +7,10 @@ import { validateBody } from "@/middleware/validateBody.middleware";
 
 const router = express.Router();
 
+router.use(generalLimiter);
+
 router.get(
   "/",
-  generalLimiter,
   validateBody(topArtistsSchema),
   checkAuth,
   getTopArtistsController,

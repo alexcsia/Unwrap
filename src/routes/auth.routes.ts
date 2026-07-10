@@ -15,9 +15,9 @@ const router = express.Router();
 const generateRandomString = (length: number): string =>
   randomBytes(length).toString("hex").slice(0, length);
 
+router.use(authLimiter);
 router.get(
   "/spotify",
-  authLimiter,
   validateBody(spotifyCallbackSchema),
   checkAuth,
   function (req, res) {
@@ -36,12 +36,12 @@ router.get(
     );
   },
 );
-router.get("/callback", authLimiter, checkAuth, spotifyCallbackController);
+router.get("/callback", checkAuth, spotifyCallbackController);
 
-router.get("/refresh", authLimiter, refreshController);
+router.get("/refresh", refreshController);
 
-router.post("/login", authLimiter, validateBody(loginSchema), loginController);
+router.post("/login", validateBody(loginSchema), loginController);
 
-router.get("/logout", authLimiter, checkAuth, logoutController);
+router.get("/logout", checkAuth, logoutController);
 
 export default router;

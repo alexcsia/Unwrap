@@ -19,9 +19,10 @@ const upload = multer({
   dest: path.join(process.cwd(), "uploads"),
 });
 
+router.use(generalLimiter);
+
 router.get(
   "/:platform/recent",
-  generalLimiter,
   validateBody(getHistorySchema),
   checkAuth,
   validatePlatform,
@@ -31,7 +32,6 @@ router.get(
 const uploadBodyParser = express.json({ limit: "50mb" });
 router.post(
   "/:platform/upload",
-  generalLimiter,
   validateBody(uploadHistorySchema),
   idempotencyMiddleware,
   uploadBodyParser,

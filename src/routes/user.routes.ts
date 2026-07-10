@@ -7,12 +7,9 @@ import { validateBody } from "@/middleware/validateBody.middleware";
 import { createUserSchema } from "@/schemas/user.schema";
 const router = express.Router();
 
-router.post(
-  "/register",
-  generalLimiter,
-  validateBody(createUserSchema),
-  createUserController,
-);
+router.use(generalLimiter);
+
+router.post("/register", validateBody(createUserSchema), createUserController);
 router.delete("/delete", generalLimiter, checkAuth, deleteUserController);
 
 export default router;

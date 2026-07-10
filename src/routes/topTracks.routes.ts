@@ -7,9 +7,10 @@ import { topTracksSchema } from "@/schemas";
 
 const router = express.Router();
 
+router.use(generalLimiter);
+
 router.get(
   "/",
-  generalLimiter,
   validateBody(topTracksSchema),
   checkAuth,
   getTopTracksController,
