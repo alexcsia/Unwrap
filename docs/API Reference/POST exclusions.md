@@ -17,17 +17,6 @@ Requires valid JWT (via `accessToken` cookie).
 | type     | string | yes      | `"artist"` or `"track"`          |
 | targetId | string | yes      | ID of artist or track to exclude |
 
-### Accepted ID aliases
-
-You may also send one of:
-
-- `artistId`
-- `trackId`
-- `id`
-- `targetId`
-
----
-
 ## Example request
 
 ```
