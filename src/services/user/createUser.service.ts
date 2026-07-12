@@ -1,7 +1,8 @@
 import prisma from "@/utils/prisma.util";
 import { ApiError } from "@/errors/ApiError";
 import Big from "bcrypt";
-
+import type { createUserSchema } from "@/schemas/user.schema";
+import z from "zod";
 /**
  * Service: createUserService
  *
@@ -21,11 +22,9 @@ import Big from "bcrypt";
  * - 500 (inherited) if hashing fails or database constraints are violated.
  */
 
-export const createUserService = async (data: {
-  email: string;
-  displayName: string;
-  password: string;
-}) => {
+type CreateUserInput = z.infer<typeof createUserSchema>;
+
+export const createUserService = async (data: CreateUserInput) => {
   const { email, displayName, password } = data;
 
   const existingUser = await prisma.user.findUnique({
