@@ -5,7 +5,6 @@ const DEV_USER_ID = "1234";
 
 async function main() {
   console.log("Cleaning database...");
-  // Ordered delete to satisfy relations
   await prisma.listeningHistory.deleteMany();
   await prisma.artist.deleteMany();
   await prisma.internalAuthSessions.deleteMany();
@@ -24,7 +23,6 @@ async function main() {
     },
   });
 
-  // 1. DYNAMICALLY GENERATE 10 ARTISTS
   const artistNames = [
     "The Midnight",
     "Gunship",
@@ -43,7 +41,6 @@ async function main() {
     platformId: `artist_${name.toLowerCase().replace(/\s/g, "_")}`,
   }));
 
-  // 2. DYNAMICALLY GENERATE 50 TRACKS
   const trackPool: any[] = [];
   for (let i = 1; i <= 50; i++) {
     // Assign 1-3 random artists to each track
@@ -70,8 +67,6 @@ async function main() {
 
       // 50 plays per month
       for (let i = 0; i < 50; i++) {
-        // Use exponential randomness so some tracks get played MUCH more than others
-        // This makes Top Tracks/Artists charts look realistic
         const weight = Math.pow(Math.random(), 3);
         const trackIndex = Math.floor(weight * trackPool.length);
         const track = trackPool[trackIndex]!;
@@ -111,7 +106,7 @@ async function main() {
   }
 
   console.log(
-    "✅ Seed complete! Created 10 artists, 50 tracks, and ~1,800 play events.",
+    " Seed complete! Created 10 artists, 50 tracks, and ~1,800 play events.",
   );
 }
 
