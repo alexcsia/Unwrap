@@ -37,38 +37,33 @@ export const getTopTracksService = async (userId: string, filters: any) => {
 
   const result = await prisma.$queryRaw<
     {
-      platformTrackId: string;
+      trackId: string;
       trackName: string;
       albumName: string;
-      source: string | null;
       playCount: bigint;
-      durationMs: bigint | null;
-      uploadedAt: Date | null;
+      durationMs: bigint;
       totalCount: bigint;
       artistNames: string;
     }[]
   >`
     SELECT 
-      lh."platformTrackId",
-      lh."trackName",
-      lh."albumName",
-      lh."source",
+      t.id AS "trackId",
+      t."trackName",
+      t."albumName",
       COUNT(lh.id) AS "playCount",
-      MAX(lh."durationMs") AS "durationMs",
-      MAX(lh."uploadedAt") AS "uploadedAt",
+      t."durationMs",
       COUNT(*) OVER() AS "totalCount",
       COALESCE(STRING_AGG(DISTINCT a.name, ', '), '') AS "artistNames"
     FROM "ListeningHistory" lh
-    JOIN "_TrackArtists" ta ON ta."B" = lh.id
-     JOIN "Artist" a ON a.id = ta."A"
+    JOIN "Track" t ON t.id = lh."trackId"
+    JOIN "_TrackArtists" ta ON ta."B" = t.id
+    JOIN "Artist" a ON a.id = ta."A"
     WHERE lh."userId" = ${userId}
       AND lh."playedAt" >= ${startDate}
       AND lh."playedAt" < ${endDate}
       ${
         excludedTrackIds.length
-          ? Prisma.sql`AND lh."platformTrackId" NOT IN (${Prisma.join(
-              excludedTrackIds,
-            )})`
+          ? Prisma.sql`AND t.id NOT IN (${Prisma.join(excludedTrackIds)})`
           : Prisma.empty
       }
       ${
@@ -77,14 +72,14 @@ export const getTopTracksService = async (userId: string, filters: any) => {
             AND NOT EXISTS (
               SELECT 1
               FROM "_TrackArtists" ta2
-              JOIN "Artist" a2 ON a2.id = ta2."A"
-              WHERE ta2."B" = lh.id
-                AND a2."platformId" = ANY(${excludedArtistIds})
+              JOIN "Artist" a2 ON a2.id = ta2."B"
+              WHERE ta2."A" = t.id
+                AND a2.id = ANY(${excludedArtistIds}::uuid[])
             )
           `
           : Prisma.empty
       }
-    GROUP BY lh."platformTrackId", lh."trackName", lh."albumName", lh."source"
+    GROUP BY t.id, t."trackName", t."albumName", t."durationMs"
     ORDER BY COUNT(lh.id) DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
@@ -102,14 +97,12 @@ export const getTopTracksService = async (userId: string, filters: any) => {
     },
     topTracks: result.map((track, index) => ({
       rank: offset + index + 1,
-      trackId: track.platformTrackId,
+      trackId: track.trackId,
       trackName: track.trackName,
-      artistName: track.artistNames,
+      artistNames: track.artistNames,
       albumName: track.albumName,
       plays: Number(track.playCount),
-      durationMs: Number(track.durationMs ?? 0),
-      source: track.source ?? "",
-      uploadedAt: track.uploadedAt?.toISOString() ?? "",
+      durationMs: Number(track.durationMs),
     })),
   };
 };

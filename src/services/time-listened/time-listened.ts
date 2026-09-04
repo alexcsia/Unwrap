@@ -42,7 +42,7 @@ export const timeListenedService = async (userId: string, filters: any) => {
     endDate = new Date();
   }
 
-  const aggregation = await prisma.listeningHistory.aggregate({
+  const history = await prisma.listeningHistory.findMany({
     where: {
       userId,
       playedAt: {
@@ -50,16 +50,21 @@ export const timeListenedService = async (userId: string, filters: any) => {
         lt: endDate,
       },
     },
-    _sum: {
-      durationMs: true,
-    },
-    _count: {
-      id: true,
+    select: {
+      track: {
+        select: {
+          durationMs: true,
+        },
+      },
     },
   });
 
-  const totalMs = aggregation._sum.durationMs || 0;
+  const totalMs = history.reduce(
+    (total, item) => total + item.track.durationMs,
+    0,
+  );
 
+  const totalTracks = history.length;
   return {
     period: {
       start: startDate.toISOString(),
@@ -67,7 +72,7 @@ export const timeListenedService = async (userId: string, filters: any) => {
     },
     statistics: {
       totalMs,
-      totalTracks: aggregation._count.id,
+      totalTracks,
     },
   };
 };

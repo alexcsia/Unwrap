@@ -32,6 +32,7 @@ export const processSpotifyEntries = async (
           albumName: raw.master_metadata_album_album_name || "Unknown Album",
           durationMs: raw.ms_played || 0,
           playedAt: raw.ts,
+          // isrc: raw.isrc,
           source: "spotify_upload",
           metadata: raw,
           uploadedAt: new Date(),

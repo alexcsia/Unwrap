@@ -1,31 +1,18 @@
 import { getPlatformConnection } from "@/models/connectedPlatforms";
-import { fetchListeningHistory } from "@/services/listening-history/platforms/spotify/utils";
-import { saveListeningHistory } from "@/models/history.model";
+import { fetchRecentTracks } from "@/services/listening-history/platforms/spotify/utils";
+import {
+  findOrCreateTrack,
+  connectArtistsAndTrack,
+} from "@/models/track.model";
 import { ApiError } from "@/errors/ApiError";
-
-export interface HistoryEntry {
-  id: string;
-  trackId: string;
-  trackName: string;
-  artistName: string;
-  albumName: string;
-  playedAt: string;
-  durationMs: number;
-  source: string;
-}
-
-export interface HistoryResponse {
-  pagination: Pagination;
-  history: HistoryEntry[];
-}
-export interface Pagination {
-  limit: number;
-  offset: number;
-  total: number;
-  hasMore: boolean;
-  nextOffset: number | null;
-  previousOffset: number | null;
-}
+import type {
+  HistoryResponse,
+  SpotifyArtistDTO,
+  SpotifyListeningHistoryDTO,
+  SpotifyTrackDTO,
+} from "../types";
+import { saveListeningHistory } from "@/models/listeningHistory.model";
+import { findOrCreateArtist } from "@/models/artist.model";
 
 /**
  * Service: spotifyGetHistoryHandler
@@ -59,30 +46,75 @@ export const spotifyGetHistoryHandler = async (
     throw new ApiError(403, "FORBIDDEN", "No Spotify connection found.");
   }
 
-  const history = await fetchListeningHistory(userSpotify);
+  const history = await fetchRecentTracks(userSpotify);
   const results = [];
 
   for (const item of history) {
-    console.log(item);
-    const savedEntry = await saveListeningHistory(item);
-    if (savedEntry) results.push(savedEntry);
+    const track: SpotifyTrackDTO = {
+      platformTrackId: item.platformTrackId,
+      trackName: item.trackName,
+      albumName: item.albumName,
+      durationMs: item.durationMs,
+      metadata: item.metadata,
+      isrc: item.isrc,
+    };
+
+    const ListeningHistory: SpotifyListeningHistoryDTO = {
+      trackId: null,
+      playedAt: item.playedAt,
+      platformName: item.platformName,
+      source: item.source,
+      uploadedAt: item.uploadedAt,
+    };
+
+    const artists: SpotifyArtistDTO[] = item.artists.map((trackArtist) => {
+      return {
+        name: trackArtist.name,
+        genres: [],
+        imageUrl: undefined,
+        platformId: trackArtist.platformId,
+      };
+    });
+
+    const savedArtistEntry = await findOrCreateArtist(
+      artists,
+      item.platformName,
+    );
+
+    const savedTrackEntry = await findOrCreateTrack(track, item.platformName);
+
+    await connectArtistsAndTrack(savedTrackEntry!, savedArtistEntry);
+
+    const savedLHEntry = await saveListeningHistory(
+      ListeningHistory,
+      savedTrackEntry!.id,
+      userSpotify.userId,
+    );
+    if (savedArtistEntry && savedTrackEntry && savedLHEntry)
+      results.push({ savedTrackEntry, savedArtistEntry, savedLHEntry });
   }
 
   console.log(`Saved ${results.length} new entries to the database.`);
 
   const formattedHistory = results.map((entry) => ({
-    id: entry.id,
-    trackId: entry.platformTrackId,
-    trackName: entry.trackName,
-    artistName: entry.artists.map((a: any) => a.name).join(", "),
-    albumName: entry.albumName,
-    playedAt: entry.playedAt.toISOString(),
-    durationMs: entry.durationMs,
-    source: entry.source,
-    artists: entry.artists.map((a: any) => ({
-      platformId: a.platformId,
-      name: a.name,
-    })),
+    track: {
+      trackName: entry.savedTrackEntry.trackName,
+      albumName: entry.savedTrackEntry.albumName,
+      durationMs: entry.savedTrackEntry.durationMs,
+      trackId: entry.savedTrackEntry.id,
+    },
+    artists: {
+      artistsNames: entry.savedArtistEntry.map((artist) => artist.name),
+      id: entry.savedArtistEntry.map((artist) => artist.id),
+      imageUrl: entry.savedArtistEntry.map((artist) => artist.imageUrl),
+      genres: entry.savedArtistEntry.map((artist) => artist.genres),
+    },
+    listeningEvent: {
+      trackId: entry.savedLHEntry.id,
+      playedAt: entry.savedLHEntry.playedAt,
+      source: entry.savedLHEntry.source,
+      uploadedAt: entry.savedLHEntry.uploadedAt,
+    },
   }));
 
   return {

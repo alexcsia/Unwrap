@@ -19,8 +19,8 @@ mock.module("@/utils/prisma.util", () => ({
     artist: {
       findUnique: mock(),
     },
-    listeningHistory: {
-      findFirst: mock(),
+    track: {
+      findUnique: mock(),
     },
   },
 }));
@@ -29,21 +29,20 @@ describe("Exclusion Service", () => {
   const userId = "user-123";
 
   beforeEach(() => {
-    mock.restore();
     (exclusionModel.addExclusion as any).mockClear();
     (exclusionModel.deleteExclusion as any).mockClear();
     (exclusionModel.getExclusionsByUserId as any).mockClear();
     (prisma.artist.findUnique as any).mockClear();
-    (prisma.listeningHistory.findFirst as any).mockClear();
+    (prisma.track.findUnique as any).mockClear();
   });
 
   describe("addExclusionService", () => {
     test("should add an artist exclusion after successful DB lookup", async () => {
       const targetId = "artist-456";
       const mockArtist = {
-        id: "a1",
+        id: targetId,
         name: "Taylor Swift",
-        platformId: targetId,
+        tracks: [{ id: "track1" }],
       };
       const mockExclusion = {
         id: "excl-1",
@@ -60,7 +59,17 @@ describe("Exclusion Service", () => {
       });
 
       expect(prisma.artist.findUnique).toHaveBeenCalledWith({
-        where: { platformId: targetId },
+        where: { id: targetId },
+        include: {
+          tracks: {
+            where: {
+              listeningHistory: {
+                some: { userId },
+              },
+            },
+            take: 1,
+          },
+        },
       });
 
       expect(exclusionModel.addExclusion).toHaveBeenCalledWith(userId, {
@@ -80,6 +89,7 @@ describe("Exclusion Service", () => {
         trackName: "Cruel Summer",
         albumName: "Lover",
         artists: [{ name: "Taylor Swift" }],
+        listeningHistory: [{ id: "lh1" }],
       };
       const mockExclusion = {
         id: "excl-2",
@@ -87,12 +97,12 @@ describe("Exclusion Service", () => {
         excludedAt: new Date(),
       };
 
-      (prisma.listeningHistory.findFirst as any).mockResolvedValue(mockTrack);
+      (prisma.track.findUnique as any).mockResolvedValue(mockTrack);
       (exclusionModel.addExclusion as any).mockResolvedValue(mockExclusion);
 
       await addExclusionService(userId, { type: "track", targetId });
 
-      expect(prisma.listeningHistory.findFirst).toHaveBeenCalled();
+      expect(prisma.track.findUnique).toHaveBeenCalled();
       expect(exclusionModel.addExclusion).toHaveBeenCalledWith(userId, {
         type: "track",
         targetId,

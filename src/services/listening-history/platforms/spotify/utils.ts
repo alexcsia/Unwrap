@@ -1,16 +1,17 @@
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import type { SpotifyUser } from "./types";
 import { ApiError } from "@/errors/ApiError";
-import { listeningHistorySchema } from "./validators";
+import { recentTracksInput } from "./validators";
 import z from "zod";
 import { refreshAccessToken } from "@/services/auth/platforms/spotify";
-import type { ConnectedPlatforms } from "@prisma/client";
+import { Prisma, type ConnectedPlatforms } from "@prisma/client";
 
-type ListeningHistoryDTO = z.infer<typeof listeningHistorySchema>;
+type recentTracksInput = z.infer<typeof recentTracksInput>;
 
-export const fetchListeningHistory = async (
+export const fetchRecentTracks = async (
   user: SpotifyUser,
-): Promise<ListeningHistoryDTO[]> => {
+  cursor?: string, // timestamp in ms from redis
+): Promise<recentTracksInput[]> => {
   try {
     const spotifyApi = SpotifyApi.withAccessToken(
       process.env.SPOTIFY_CLIENT_ID!,
@@ -22,8 +23,13 @@ export const fetchListeningHistory = async (
       },
     );
 
-    const history = await spotifyApi.player.getRecentlyPlayedTracks(50);
-    return history.items.map((item) => ({
+    //instead of extracting one huge listening history object,
+    //must sort data into Track and ListeningHistory
+    const recentTracks = await spotifyApi.player.getRecentlyPlayedTracks(
+      50,
+      cursor ? ({ after: Number(cursor) } as any) : undefined,
+    );
+    return recentTracks.items.map((item) => ({
       userId: user.userId,
       platformTrackId: item.track.id,
       platformName: "spotify",
@@ -32,7 +38,8 @@ export const fetchListeningHistory = async (
       albumName: item.track.album.name,
       durationMs: item.track.duration_ms,
       source: "get_recently_played",
-      metadata: {},
+      metadata: null,
+      isrc: item.track.external_ids.isrc,
       uploadedAt: new Date(),
 
       artists: item.track.artists.map((artist) => ({
@@ -47,10 +54,10 @@ export const fetchListeningHistory = async (
     ) {
       const newAccessToken = await refreshAccessToken(user);
 
-      return fetchListeningHistory({
-        ...user,
-        AccessToken: newAccessToken,
-      });
+      return fetchRecentTracks(
+        { ...user, AccessToken: newAccessToken },
+        cursor,
+      );
     }
 
     throw new ApiError(

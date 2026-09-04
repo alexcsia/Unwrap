@@ -28,37 +28,34 @@ export const getTopArtistsService = async (userId: string, filters: any) => {
       artistName: string;
       imageUrl: string | null;
       playCount: bigint;
-      durationMs: bigint | null;
-      source: string | null;
-      uploadedAt: Date | null;
+      totalDurationMs: bigint;
       totalCount: bigint;
     }[]
   >`
-    SELECT 
-      a.id AS "artistId",
-      a.name AS "artistName",
-      a."imageUrl",
-      COUNT(lh.id) AS "playCount",
-      SUM(lh."durationMs") AS "durationMs",
-      MIN(lh."source") AS "source",
-      MAX(lh."uploadedAt") AS "uploadedAt",
-      COUNT(*) OVER() AS "totalCount"
-    FROM "ListeningHistory" lh
-    JOIN "_TrackArtists" ta ON ta."B" = lh.id
-    JOIN "Artist" a ON a.id = ta."A"
-    WHERE lh."userId" = ${userId}
-      AND lh."playedAt" >= ${startDate}
-      AND lh."playedAt" < ${endDate}
-      AND a."platformId" NOT IN (
-        SELECT "targetId"
-        FROM "Exclusion"
-        WHERE "userId" = ${userId}
-          AND "type" = 'artist'
-      )
-    GROUP BY a.id, a.name, a."imageUrl"
-    ORDER BY "playCount" DESC
-    LIMIT ${limit}
-    OFFSET ${offset}
+SELECT 
+    a.id AS "artistId",
+    a.name AS "artistName",
+    a."imageUrl",
+    COUNT(lh.id) AS "playCount",
+    SUM(t."durationMs") AS "totalDurationMs",
+    COUNT(*) OVER() AS "totalCount"
+  FROM "ListeningHistory" lh
+  JOIN "Track" t ON t.id = lh."trackId"
+  JOIN "_TrackArtists" ta ON ta."B" = t.id
+  JOIN "Artist" a ON a.id = ta."A"
+  WHERE lh."userId" = ${userId}
+    AND lh."playedAt" >= ${startDate}
+    AND lh."playedAt" < ${endDate}
+    AND a.id NOT IN (
+      SELECT "targetId"
+      FROM "Exclusion"
+      WHERE "userId" = ${userId}
+        AND "type" = 'artist'
+    )
+  GROUP BY a.id, a.name, a."imageUrl"
+  ORDER BY "playCount" DESC
+  LIMIT ${limit}
+  OFFSET ${offset}
   `;
 
   const total = Number(raw[0]?.totalCount ?? 0);
@@ -68,11 +65,7 @@ export const getTopArtistsService = async (userId: string, filters: any) => {
     artistId: artist.artistId,
     artistName: artist.artistName,
     playCount: Number(artist.playCount),
-    durationMs: Number(artist.durationMs ?? 0),
-    source: artist.source ?? "unknown",
-    uploadedAt: artist.uploadedAt
-      ? artist.uploadedAt.toISOString()
-      : new Date().toISOString(),
+    durationMs: Number(artist.totalDurationMs ?? 0),
   }));
 
   return {

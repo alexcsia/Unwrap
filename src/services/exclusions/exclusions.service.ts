@@ -46,7 +46,18 @@ export const addExclusionService = async (
 
   if (type === "artist") {
     const artist = await prisma.artist.findUnique({
-      where: { platformId: targetId },
+      where: { id: targetId },
+      include: {
+        tracks: {
+          where: {
+            listeningHistory: {
+              some: { userId },
+            },
+          },
+
+          take: 1,
+        },
+      },
     });
 
     if (!artist) {
@@ -58,12 +69,20 @@ export const addExclusionService = async (
     }
     name = artist.name;
   } else if (type === "track") {
-    const track = await prisma.listeningHistory.findFirst({
-      where: { platformTrackId: targetId, userId },
-      include: { artists: true },
+    const track = await prisma.track.findUnique({
+      where: { id: targetId },
+      include: {
+        artists: {
+          select: { name: true },
+        },
+        listeningHistory: {
+          where: { userId },
+          take: 1,
+        },
+      },
     });
 
-    if (!track) {
+    if (!track || track.listeningHistory.length === 0) {
       throw new ApiError(404, "NOT_FOUND", "Track not found in your history.");
     }
 

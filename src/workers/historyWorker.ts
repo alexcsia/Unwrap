@@ -1,12 +1,20 @@
 import { Worker, Job } from "bullmq";
-import { saveListeningHistory } from "@/models/history.model";
+import { saveListeningHistory } from "@/models/listeningHistory.model";
 import { getSpotifyArtistIds } from "@/services/listening-history/platforms/spotify/utils";
 import { getPlatformConnection } from "@/models/connectedPlatforms";
-import type { HistorySyncJobData } from "./types";
+import type { HistorySyncJobData, UploadData } from "./types";
 import { redisConnection } from "@/lib/queue";
-import type { ListeningHistoryDTO } from "@/services/listening-history/platforms/spotify/validators";
 import { redisCache } from "@/lib/queue";
-
+import type {
+  SpotifyArtistDTO,
+  SpotifyListeningHistoryDTO,
+  SpotifyTrackDTO,
+} from "@/services/listening-history/platforms/spotify/types";
+import { findOrCreateArtist } from "@/models/artist.model";
+import {
+  findOrCreateTrack,
+  connectArtistsAndTrack,
+} from "@/models/track.model";
 const CACHE_TTL_SEC = 7 * 24 * 3600; // 7 days
 
 /**
@@ -38,7 +46,7 @@ const worker = new Worker<HistorySyncJobData>(
     let lockKey: string | null = null;
     let lockAcquired = false;
 
-    const entry: ListeningHistoryDTO = {
+    const entry: UploadData = {
       userId: userId,
       platformTrackId: rawEntry.platformTrackId,
       platformName: rawEntry.platformName,
@@ -46,6 +54,7 @@ const worker = new Worker<HistorySyncJobData>(
       albumName: rawEntry.albumName,
       durationMs: rawEntry.durationMs,
       source: rawEntry.source,
+      isrc: rawEntry.isrc || undefined,
       metadata: (rawEntry.metadata as any) || {},
       playedAt: new Date(rawEntry.playedAt),
       uploadedAt: rawEntry.uploadedAt
@@ -131,7 +140,54 @@ const worker = new Worker<HistorySyncJobData>(
         }
       }
 
-      await saveListeningHistory(entry);
+      const track: SpotifyTrackDTO = {
+        platformTrackId: entry.platformTrackId,
+        trackName: entry.trackName,
+        albumName: entry.albumName,
+        durationMs: entry.durationMs,
+        metadata: entry.metadata,
+        isrc: entry.isrc,
+      };
+
+      const ListeningHistory: SpotifyListeningHistoryDTO = {
+        trackId: null,
+        playedAt: entry.playedAt,
+        platformName: entry.platformName,
+        source: entry.source,
+        uploadedAt: entry.uploadedAt,
+      };
+
+      const artists: SpotifyArtistDTO[] = entry.artists.map((trackArtist) => {
+        return {
+          name: trackArtist.name,
+          genres: [],
+          imageUrl: undefined,
+          platformId: trackArtist.platformId,
+        };
+      });
+
+      const savedArtistEntry = await findOrCreateArtist(
+        artists,
+        entry.platformName,
+      );
+
+      if (savedArtistEntry.length === 0) {
+        throw new Error(`No artists resolved for track ${entry.trackName}`);
+      }
+
+      const savedTrackEntry = await findOrCreateTrack(
+        track,
+        entry.platformName,
+      );
+
+      await connectArtistsAndTrack(savedTrackEntry!, savedArtistEntry);
+
+      const savedLHEntry = await saveListeningHistory(
+        ListeningHistory,
+        savedTrackEntry!.id,
+        userId,
+      );
+
       console.log(`[Job ${job.id}]  Saved to DB.`);
       return { status: "completed" };
     } catch (error: any) {

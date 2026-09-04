@@ -24,7 +24,7 @@ export const connectSpotify = async (
   refreshToken: string,
   profile: UserProfile,
 ) => {
-  await prisma.connectedPlatforms.upsert({
+  return await prisma.connectedPlatforms.upsert({
     where: {
       userId_platformName: {
         userId: userId,

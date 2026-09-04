@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const listeningHistorySchema = z.object({
+export const recentTracksInput = z.object({
   userId: z.string(),
   platformTrackId: z.string(),
   platformName: z.string(),
@@ -9,7 +9,8 @@ export const listeningHistorySchema = z.object({
   durationMs: z.number().int(),
   playedAt: z.coerce.date(),
   source: z.string(),
-  metadata: z.json(),
+  metadata: z.null(),
+  isrc: z.string(),
   uploadedAt: z.coerce.date().default(() => new Date()),
 
   artists: z
@@ -22,5 +23,14 @@ export const listeningHistorySchema = z.object({
     .min(1),
 });
 
+export const listeningHistorySchema = z.object({
+  userId: z.string(),
+  platformTrackId: z.string(),
+  platformName: z.string(),
+  playedAt: z.coerce.date(),
+  source: z.string(),
+  uploadedAt: z.coerce.date().default(() => new Date()),
+});
+
 export const listeningHistoryArraySchema = z.array(listeningHistorySchema);
-export type ListeningHistoryDTO = z.infer<typeof listeningHistorySchema>;
+// export type ListeningHistoryDTO = z.infer<typeof listeningHistorySchema>;

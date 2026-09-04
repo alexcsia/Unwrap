@@ -15,7 +15,7 @@ export const addExclusionController = async (
   next: NextFunction,
 ) => {
   const type = req.body.type || req.query.type;
-  const targetId = req.body.targetId;
+  const targetId = req.body.targetId || req.query.targetId;
 
   const result = await ExclusionService.addExclusionService(req.user!.id, {
     type: type as "artist" | "track",
