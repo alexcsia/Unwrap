@@ -60,7 +60,6 @@ export const spotifyGetHistoryHandler = async (
     };
 
     const ListeningHistory: SpotifyListeningHistoryDTO = {
-      trackId: null,
       playedAt: item.playedAt,
       platformName: item.platformName,
       source: item.source,
@@ -71,7 +70,7 @@ export const spotifyGetHistoryHandler = async (
       return {
         name: trackArtist.name,
         genres: [],
-        imageUrl: undefined,
+        imageUrl: "",
         platformId: trackArtist.platformId,
       };
     });
@@ -107,7 +106,7 @@ export const spotifyGetHistoryHandler = async (
       artistsNames: entry.savedArtistEntry.map((artist) => artist.name),
       id: entry.savedArtistEntry.map((artist) => artist.id),
       imageUrl: entry.savedArtistEntry.map((artist) => artist.imageUrl),
-      genres: entry.savedArtistEntry.map((artist) => artist.genres),
+      genres: entry.savedArtistEntry.flatMap((artist) => artist.genres),
     },
     listeningEvent: {
       trackId: entry.savedLHEntry.id,

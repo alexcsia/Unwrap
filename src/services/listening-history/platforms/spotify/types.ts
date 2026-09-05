@@ -1,5 +1,3 @@
-import { Prisma } from "@prisma/client";
-
 export interface SpotifyUser {
   id: string;
   userId: string;
@@ -11,7 +9,26 @@ export interface SpotifyUser {
   connectedAt: Date;
 }
 
-export interface HistoryEntry {}
+export interface HistoryEntry {
+  track: {
+    trackName: string;
+    albumName: string;
+    durationMs: number;
+    trackId: string;
+  };
+  artists: {
+    artistsNames: string[];
+    id: string[];
+    imageUrl: (string | null)[];
+    genres: string[];
+  };
+  listeningEvent: {
+    trackId: string;
+    playedAt: Date;
+    source: string;
+    uploadedAt: Date;
+  };
+}
 
 export interface HistoryResponse {
   pagination: Pagination;
@@ -36,7 +53,7 @@ export interface SpotifyTrackDTO {
 }
 
 export interface SpotifyListeningHistoryDTO {
-  trackId: string | null;
+  // trackId: string | null;
   playedAt: Date;
   source: string;
   uploadedAt: Date;
@@ -45,7 +62,7 @@ export interface SpotifyListeningHistoryDTO {
 
 export interface SpotifyArtistDTO {
   name: string;
-  imageUrl: string | undefined;
+  imageUrl: string;
   genres: string[];
   platformId: string;
 }

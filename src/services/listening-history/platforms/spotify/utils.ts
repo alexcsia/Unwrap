@@ -23,8 +23,6 @@ export const fetchRecentTracks = async (
       },
     );
 
-    //instead of extracting one huge listening history object,
-    //must sort data into Track and ListeningHistory
     const recentTracks = await spotifyApi.player.getRecentlyPlayedTracks(
       50,
       cursor ? ({ after: Number(cursor) } as any) : undefined,
