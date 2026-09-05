@@ -2,41 +2,23 @@ import fs from "fs";
 import path from "path";
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
-
-/**
- * Middleware: validateZipUpload
- *
- * Validates uploaded file for history ingestion.
- *
- * Requirements:
- * - File must exist
- * - File must be a ZIP archive
- *
- * Behavior:
- * - Deletes invalid files
- * - Throws error if validation fails
- */
+import { uploadHistorySchema } from "@/schemas";
 
 export const validateZipUpload = (
   req: Request,
   _res: Response,
   next: NextFunction,
 ) => {
-  if (!req.file) {
-    throw new ApiError(
-      400,
-      "NO_FILES_FOUND",
-      "No file found in the request body.",
-    );
-  }
+  const data = {
+    file: req.file,
+  };
 
-  if (!req.file.mimetype.includes("zip")) {
-    fs.unlinkSync(req.file.path);
-    throw new ApiError(
-      400,
-      "INVALID_UPLOAD",
-      `Expected .zip, received ${req.file.mimetype}`,
-    );
+  const result = uploadHistorySchema.safeParse(data);
+  if (!result.success) {
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    throw new ApiError(400, "INVALID_UPLOAD", "File uploaded is invalid");
   }
 
   next();

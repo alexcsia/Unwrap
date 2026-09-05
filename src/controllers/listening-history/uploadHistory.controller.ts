@@ -17,9 +17,14 @@ export const uploadHistoryController = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  console.log("File in processZipFile:", req.file);
+  const { platform } = req.params;
 
-  const { platform } = req;
+  if (!platform)
+    throw new ApiError(
+      400,
+      "MISSING_PLATFORM",
+      "Streaming platform is missing from the request",
+    );
 
   const user = req.user;
   if (!user || !user.id) {
