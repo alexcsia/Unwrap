@@ -1,10 +1,10 @@
 import { Worker, Job } from "bullmq";
+import prisma from "@/utils/prisma.util";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
 import { getSpotifyArtistIds } from "@/services/listening-history/platforms/spotify/utils";
 import { getPlatformConnection } from "@/models/connectedPlatforms";
 import type { HistorySyncJobData, UploadData } from "./types";
-import { redisConnection } from "@/lib/queue";
-import { redisCache } from "@/lib/queue";
+import { redisConnection, redisCache } from "@/lib/queue";
 import type {
   SpotifyArtistDTO,
   SpotifyListeningHistoryDTO,
@@ -15,6 +15,7 @@ import {
   findOrCreateTrack,
   connectArtistsAndTrack,
 } from "@/models/track.model";
+
 const CACHE_TTL_SEC = 7 * 24 * 3600; // 7 days
 
 /**
@@ -43,11 +44,8 @@ const worker = new Worker<HistorySyncJobData>(
     console.log("[Worker] Starting job", job.id);
     const { userId, entry: rawEntry } = job.data;
 
-    let lockKey: string | null = null;
-    let lockAcquired = false;
-
     const entry: UploadData = {
-      userId: userId,
+      userId,
       platformTrackId: rawEntry.platformTrackId,
       platformName: rawEntry.platformName,
       trackName: rawEntry.trackName,
@@ -76,67 +74,65 @@ const worker = new Worker<HistorySyncJobData>(
         })),
     };
 
+    const lockKey = `lock:track:${entry.platformTrackId}`;
+    let lockAcquired = false;
+
     try {
-      console.log(`[Job ${job.id}]  Processing: "${entry.trackName}"`);
+      console.log(`[Job ${job.id}] Processing: "${entry.trackName}"`);
 
       const isPending = entry.artists.some((a) =>
         a.platformId.startsWith("pending:"),
       );
       const connection = await getPlatformConnection(userId, "spotify");
 
+      let resolvedArtists = entry.artists;
+
       if (isPending && connection) {
         const cacheKey = `spotify:track:${entry.platformTrackId}:artists`;
-        lockKey = `lock:track:${entry.platformTrackId}`;
-
         const cached = await redisCache.get(cacheKey);
-        let artistsFromSpotify: { id: string; name: string }[] | null = null;
 
         if (cached) {
           await redisCache.expire(cacheKey, CACHE_TTL_SEC);
-          artistsFromSpotify = JSON.parse(cached);
-          console.log(`[Job ${job.id}]  Cache hit`);
+          resolvedArtists = JSON.parse(cached);
+          console.log(`[Job ${job.id}] Cache hit for artist IDs`);
         } else {
           const lock = await redisCache.set(lockKey, "1", "EX", 30, "NX");
-          if (lock) {
-            lockAcquired = true;
-            console.log(`[Job ${job.id}]  Fetching from Spotify...`);
 
-            try {
-              artistsFromSpotify = await getSpotifyArtistIds(
-                entry.platformTrackId,
-                connection,
-              );
-              await redisCache.set(
-                cacheKey,
-                JSON.stringify(artistsFromSpotify),
-                "EX",
-                CACHE_TTL_SEC,
-              );
-            } catch (apiErr: any) {
-              if (apiErr.status === 429) {
-                const delay = (apiErr.retryAfter || 30) * 1000;
-                console.warn(
-                  `[Job ${job.id}]  Rate limit. Retrying in ${delay / 1000}s`,
-                );
-                await job.moveToDelayed(Date.now() + delay);
-                return;
-              }
-              console.warn(
-                `[Job ${job.id}]  Enrichment failed: ${apiErr.message}. Saving pending version.`,
-              );
-            }
-          } else {
-            console.log(`[Job ${job.id}]  Resource locked, retrying...`);
+          if (!lock) {
+            console.log(
+              `[Job ${job.id}] Enrichment lock contended, retrying in 1s`,
+            );
             await job.moveToDelayed(Date.now() + 1000);
             return;
           }
-        }
 
-        if (artistsFromSpotify && artistsFromSpotify.length > 0) {
-          entry.artists = artistsFromSpotify.map((a) => ({
-            platformId: a.id,
-            name: a.name,
-          }));
+          lockAcquired = true;
+          console.log(`[Job ${job.id}] Fetching artist IDs from Spotify...`);
+
+          try {
+            const artistsFromSpotify = await getSpotifyArtistIds(
+              entry.platformTrackId,
+              connection,
+            );
+
+            await redisCache.set(
+              cacheKey,
+              JSON.stringify(artistsFromSpotify),
+              "EX",
+              CACHE_TTL_SEC,
+            );
+
+            if (artistsFromSpotify?.length) {
+              resolvedArtists = artistsFromSpotify.map((a) => ({
+                platformId: a.id,
+                name: a.name,
+              }));
+            }
+          } catch (apiErr: any) {
+            console.warn(
+              `[Job ${job.id}] Enrichment failed: ${apiErr.message}. Saving with pending artists.`,
+            );
+          }
         }
       }
 
@@ -149,53 +145,55 @@ const worker = new Worker<HistorySyncJobData>(
         isrc: entry.isrc,
       };
 
-      const ListeningHistory: SpotifyListeningHistoryDTO = {
-        trackId: null,
+      const listeningHistory: SpotifyListeningHistoryDTO = {
         playedAt: entry.playedAt,
         platformName: entry.platformName,
         source: entry.source,
         uploadedAt: entry.uploadedAt,
       };
 
-      const artists: SpotifyArtistDTO[] = entry.artists.map((trackArtist) => {
-        return {
-          name: trackArtist.name,
-          genres: [],
-          imageUrl: undefined,
-          platformId: trackArtist.platformId,
-        };
+      const artists: SpotifyArtistDTO[] = resolvedArtists.map((a) => ({
+        name: a.name,
+        genres: [],
+        imageUrl: undefined,
+        platformId: a.platformId,
+      }));
+
+      await prisma.$transaction(async () => {
+        const savedTrack = await findOrCreateTrack(track, entry.platformName);
+        if (!savedTrack) {
+          throw new Error(`Failed to find or create track: ${entry.trackName}`);
+        }
+
+        const savedArtists = await findOrCreateArtist(
+          artists,
+          entry.platformName,
+        );
+
+        await connectArtistsAndTrack(savedTrack, savedArtists);
+
+        await saveListeningHistory(listeningHistory, savedTrack.id, userId);
       });
 
-      const savedArtistEntry = await findOrCreateArtist(
-        artists,
-        entry.platformName,
-      );
-
-      if (savedArtistEntry.length === 0) {
-        throw new Error(`No artists resolved for track ${entry.trackName}`);
-      }
-
-      const savedTrackEntry = await findOrCreateTrack(
-        track,
-        entry.platformName,
-      );
-
-      await connectArtistsAndTrack(savedTrackEntry!, savedArtistEntry);
-
-      const savedLHEntry = await saveListeningHistory(
-        ListeningHistory,
-        savedTrackEntry!.id,
-        userId,
-      );
-
-      console.log(`[Job ${job.id}]  Saved to DB.`);
+      console.log(`[Job ${job.id}] Saved to DB`);
       return { status: "completed" };
     } catch (error: any) {
-      console.error(`[Job ${job.id}]  Fatal Error: ${error.message}`);
+      if (error.statusCode === 429) {
+        const delay = error.meta?.retryAfter
+          ? Number(error.meta.retryAfter) * 1000
+          : 30_000;
+        console.warn(
+          `[Job ${job.id}] Rate limited. Retrying in ${delay / 1000}s`,
+        );
+        await job.moveToDelayed(Date.now() + delay);
+        return;
+      }
+
+      console.error(`[Job ${job.id}] Fatal error: ${error.message}`);
       throw error;
     } finally {
-      if (lockAcquired && lockKey) {
-        await redisCache.del(lockKey);
+      if (lockAcquired) {
+        await redisCache.del(lockKey).catch(() => {});
       }
     }
   },
@@ -212,11 +210,9 @@ const worker = new Worker<HistorySyncJobData>(
 );
 
 worker.on("completed", (job) =>
-  console.log(`[Worker] Job ${job.id} completed.`),
+  console.log(`[Worker] Job ${job.id} completed`),
 );
-
 worker.on("failed", (job, err) =>
   console.error(`[Worker] Job ${job?.id} failed: ${err.message}`),
 );
-
-worker.on("error", (err) => console.error(`[Worker] Connection Error:`, err));
+worker.on("error", (err) => console.error(`[Worker] Connection error:`, err));
