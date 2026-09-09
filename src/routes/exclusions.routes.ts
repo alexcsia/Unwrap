@@ -5,8 +5,8 @@ import {
 } from "@/controllers/exclusions/exclusions";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
-import { validateBody } from "@/middleware/validateBody.middleware";
-import { createExclusionSchema, deleteExclusionSchema } from "@/schemas";
+import { validateRequest } from "@/middleware/validateRequest.middleware";
+import { exclusionParamsSchema } from "@/schemas";
 import express from "express";
 
 const router = express.Router();
@@ -14,14 +14,14 @@ const router = express.Router();
 router.use(generalLimiter);
 
 router.post(
-  "/",
-  validateBody(createExclusionSchema),
+  "/:type/:targetId",
   checkAuth,
+  validateRequest(exclusionParamsSchema, "params"),
   addExclusionController,
 );
 router.delete(
-  "/",
-  validateBody(deleteExclusionSchema),
+  "/:type/:targetId",
+  validateRequest(exclusionParamsSchema, "params"),
   checkAuth,
   deleteExclusionController,
 );

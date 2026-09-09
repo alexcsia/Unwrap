@@ -14,8 +14,7 @@ export const addExclusionController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const type = req.body.type || req.query.type;
-  const targetId = req.body.targetId || req.query.targetId;
+  const { type, targetId } = req.params;
 
   const result = await ExclusionService.addExclusionService(req.user!.id, {
     type: type as "artist" | "track",
@@ -38,9 +37,9 @@ export const deleteExclusionController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const { type, targetId } = req.query as { type: string; targetId: string };
+  const { type, targetId } = req.params;
 
-  await ExclusionService.removeExclusionService(req.user!.id, type, targetId);
+  await ExclusionService.removeExclusionService(req.user!.id, type!, targetId!);
   res.status(204).send();
 };
 

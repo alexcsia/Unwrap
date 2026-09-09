@@ -7,7 +7,7 @@ import querystring from "querystring";
 import { authLimiter } from "@/middleware/rateLimit.middleware";
 import { randomBytes } from "crypto";
 import { spotifyCallbackController } from "@/controllers/auth/spotifyCallback";
-import { validateBody } from "@/middleware/validateBody.middleware";
+import { validateRequest } from "@/middleware/validateRequest.middleware";
 import { loginSchema, spotifyCallbackSchema } from "@/schemas";
 
 const router = express.Router();
@@ -18,7 +18,7 @@ const generateRandomString = (length: number): string =>
 router.use(authLimiter);
 router.get(
   "/spotify",
-  validateBody(spotifyCallbackSchema),
+  validateRequest(spotifyCallbackSchema, "body"),
   checkAuth,
   function (req, res) {
     var state = generateRandomString(16);
@@ -40,7 +40,7 @@ router.get("/callback", checkAuth, spotifyCallbackController);
 
 router.get("/refresh", refreshController);
 
-router.post("/login", validateBody(loginSchema), loginController);
+router.post("/login", validateRequest(loginSchema, "body"), loginController);
 
 router.get("/logout", checkAuth, logoutController);
 

@@ -8,7 +8,7 @@ import { validatePlatform } from "@/middleware/platform.middleware";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
 import { idempotencyMiddleware } from "@/middleware/idempotency.middleware";
-import { validateBody } from "@/middleware/validateBody.middleware";
+import { validateRequest } from "@/middleware/validateRequest.middleware";
 import { getHistorySchema } from "@/schemas";
 import { validateZipUpload } from "@/middleware/upload.middleware";
 
@@ -21,7 +21,7 @@ router.use(generalLimiter);
 
 router.get(
   "/:platform/recent",
-  validateBody(getHistorySchema),
+  validateRequest(getHistorySchema, "body"),
   checkAuth,
   validatePlatform,
   getHistoryController,

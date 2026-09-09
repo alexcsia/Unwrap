@@ -10,7 +10,7 @@ export const uploadHistorySchema = z.object({
       .min(1, "File is empty")
       .max(MAX_FILE_SIZE, "File too large"),
     mimetype: z.string().refine((m) => m === "application/zip", {
-      message: "Expected ZIP archive",
+      message: "File must be a ZIP archive",
     }),
     originalname: z.string().refine((n) => n.endsWith(".zip"), {
       message: "File name must end with .zip",
