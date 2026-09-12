@@ -1,16 +1,16 @@
-import { getPlatformConnection } from "@/models/connectedPlatforms";
-import { fetchRecentTracks } from "@/services/listening-history/platforms/spotify/utils";
+import { getPlatformConnection } from "@/models/connectedPlatforms.model";
+import { fetchRecentTracks } from "@/platforms/spotify/utils";
 import {
   findOrCreateTrack,
   connectArtistsAndTrack,
 } from "@/models/track.model";
 import { ApiError } from "@/errors/ApiError";
 import type {
-  HistoryResponse,
   SpotifyArtistDTO,
   SpotifyListeningHistoryDTO,
   SpotifyTrackDTO,
-} from "../types";
+} from "./types";
+import type { HistoryResponse } from "./types";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
 import { findOrCreateArtist } from "@/models/artist.model";
 

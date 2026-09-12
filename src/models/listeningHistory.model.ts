@@ -1,4 +1,4 @@
-import type { SpotifyListeningHistoryDTO } from "@/services/listening-history/platforms/spotify/types";
+import type { SpotifyListeningHistoryDTO } from "@/platforms/spotify/types";
 import prisma from "@/utils/prisma.util";
 import type { ListeningHistory } from "@prisma/client";
 

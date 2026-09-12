@@ -1,15 +1,15 @@
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
-import type { SpotifyUser } from "./types";
+import type { UserConnectedPlatforms } from "../../services/listeningHistory/types";
 import { ApiError } from "@/errors/ApiError";
 import { recentTracksInput } from "./validators";
 import z from "zod";
-import { refreshAccessToken } from "@/services/auth/platforms/spotify";
-import { Prisma, type ConnectedPlatforms } from "@prisma/client";
+import { refreshAccessToken } from "@/platforms/spotify/auth";
+import { type ConnectedPlatforms } from "@prisma/client";
 
 type recentTracksInput = z.infer<typeof recentTracksInput>;
 
 export const fetchRecentTracks = async (
-  user: SpotifyUser,
+  user: UserConnectedPlatforms,
   cursor?: string, // timestamp in ms from redis
 ): Promise<recentTracksInput[]> => {
   try {
@@ -69,7 +69,7 @@ export const fetchRecentTracks = async (
 export const getSpotifyArtistIds = async (
   trackUri: string,
   connection: ConnectedPlatforms,
-): Promise<{ id: string; name: string }[]> => {
+): Promise<{ platformId: string; name: string }[]> => {
   const trackId = trackUri.includes(":") ? trackUri.split(":")[2] : trackUri;
 
   if (!trackId) {
@@ -122,7 +122,7 @@ export const getSpotifyArtistIds = async (
   }
 
   return body.artists.map((artist: any) => ({
-    id: artist.id,
+    platformId: artist.id,
     name: artist.name,
   }));
 };

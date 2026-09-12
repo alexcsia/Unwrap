@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { ApiError } from "@/errors/ApiError";
-import { uploadHistoryService } from "@/services/listening-history/uploadHistory.service";
+import { uploadHistoryService } from "@/services/listeningHistory/uploadHistory.service";
 
 /**
  * POST /api/history/upload

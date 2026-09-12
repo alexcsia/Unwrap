@@ -11,7 +11,6 @@ export const addExclusion = async (
   },
 ) => {
   const { type, targetId, name, artistName, albumName } = data;
-  console.log("type in model:", type, targetId, name, albumName, artistName);
   const exclusion = await prisma.exclusion.upsert({
     where: {
       userId_type_targetId: { userId, type, targetId },

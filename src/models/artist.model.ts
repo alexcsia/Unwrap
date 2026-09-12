@@ -1,9 +1,15 @@
-import prisma from "@/utils/prisma.util";
-import type { SpotifyArtistDTO } from "@/services/listening-history/platforms/spotify/types";
 import type { Artist } from "@prisma/client";
+import prisma from "@/utils/prisma.util";
+
+type ArtistInput = {
+  name: string;
+  platformId: string;
+  genres?: string[];
+  imageUrl?: string;
+};
 
 export const findOrCreateArtist = async (
-  artists: SpotifyArtistDTO[],
+  artists: ArtistInput[],
   platform: string,
 ): Promise<Artist[]> => {
   try {

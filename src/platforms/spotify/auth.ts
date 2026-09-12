@@ -1,13 +1,12 @@
 import { ApiError } from "@/errors/ApiError";
 import prisma from "@/utils/prisma.util";
-import { addConnection } from "@/models/connectedPlatforms";
-import type { SpotifyUser } from "../../listening-history/platforms/spotify/types";
-
-interface TokenExchangeResult {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-}
+import { addConnection } from "@/models/connectedPlatforms.model";
+import type { UserConnectedPlatforms } from "../../services/listeningHistory/types";
+import { pollQueue } from "@/lib/queue";
+import type { TokenExchangeResult } from "../types";
+import { randomBytes } from "crypto";
+import querystring from "querystring";
+import type { Response } from "express";
 
 /**
  * Service: exchangeSpotifyCode
@@ -92,7 +91,7 @@ export const exchangeSpotifyCode = async (
 
   const spotifyUserData = await userResponse.json();
 
-  await prisma.connectedPlatforms.upsert({
+  const userConnectedPlatform = await prisma.connectedPlatforms.upsert({
     where: {
       userId_platformName: {
         userId,
@@ -117,6 +116,17 @@ export const exchangeSpotifyCode = async (
     },
   });
 
+  await pollQueue.add(
+    `poll:${userConnectedPlatform.userId}`,
+    { user: userConnectedPlatform },
+    {
+      // repeat: { every: 30 * 60 * 1000 }, //30 min
+      repeat: { every: 1 * 60 * 1000 },
+      jobId: `poll:${userId}`, // deduplicates, safe to call on reconnect
+      delay: Math.floor(Math.random() * 30 * 60 * 1000), // random offset within 30 min window
+    },
+  );
+
   return { access_token, refresh_token, expires_in };
 };
 
@@ -139,7 +149,7 @@ export const exchangeSpotifyCode = async (
  */
 
 export const refreshAccessToken = async (
-  user: SpotifyUser,
+  user: UserConnectedPlatforms,
 ): Promise<string> => {
   const tokenEndpoint = "https://accounts.spotify.com/api/token";
 
@@ -184,3 +194,27 @@ export const refreshAccessToken = async (
 
   return newAccessToken;
 };
+
+const generateRandomString = (length: number): string =>
+  randomBytes(length).toString("hex").slice(0, length);
+
+export const initiateOAuth = (res: Response): void => {
+  const state = generateRandomString(16);
+  const scope = "user-read-email user-read-recently-played";
+  res.redirect(
+    "https://accounts.spotify.com/authorize?" +
+      querystring.stringify({
+        response_type: "code",
+        client_id: process.env.SPOTIFY_CLIENT_ID!,
+        scope,
+        redirect_uri: process.env.SPOTIFY_CALLBACK_URI!,
+        state,
+      }),
+  );
+};
+
+export const revokeSpotifyToken = async (
+  accessToken: string,
+): Promise<void> => {};
+
+export const disconnectSpotify = async (userId: string): Promise<void> => {};

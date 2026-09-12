@@ -1,4 +1,4 @@
-import { uploadHandlers } from "./platformRegistry";
+import { getPlatformAdapter } from "@/platforms/registry";
 import { ApiError } from "@/errors/ApiError";
 
 export const uploadHistoryService = async (
@@ -7,9 +7,10 @@ export const uploadHistoryService = async (
   userId: string,
   platform: string,
 ) => {
-  const handler = uploadHandlers[platform as keyof typeof uploadHandlers];
-  if (!handler) {
+  const adapter = getPlatformAdapter(platform);
+
+  if (!adapter) {
     throw new ApiError(400, "UNSUPPORTED_PLATFORM", "Unsupported platform");
   }
-  await handler(filePath, extractedPath, userId);
+  await adapter.uploadHistory(filePath, extractedPath, userId);
 };

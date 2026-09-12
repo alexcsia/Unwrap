@@ -1,12 +1,24 @@
-export interface SpotifyUser {
-  id: string;
-  userId: string;
+export interface SpotifyTrackDTO {
+  trackName: string;
+  platformTrackId: string;
+  albumName: string;
+  durationMs: number;
+  metadata: any;
+  isrc?: string;
+}
+
+export interface SpotifyListeningHistoryDTO {
+  playedAt: Date;
+  source: string;
+  uploadedAt: Date;
   platformName: string;
-  platformUserId: string;
-  AccessToken: string;
-  RefreshToken: string;
-  expiresAt: Date;
-  connectedAt: Date;
+}
+
+export interface SpotifyArtistDTO {
+  name: string;
+  imageUrl?: string;
+  genres: string[];
+  platformId: string;
 }
 
 export interface HistoryEntry {
@@ -41,28 +53,4 @@ export interface Pagination {
   hasMore: boolean;
   nextOffset: number | null;
   previousOffset: number | null;
-}
-
-export interface SpotifyTrackDTO {
-  trackName: string;
-  platformTrackId: string;
-  albumName: string;
-  durationMs: number;
-  metadata: null;
-  isrc?: string;
-}
-
-export interface SpotifyListeningHistoryDTO {
-  // trackId: string | null;
-  playedAt: Date;
-  source: string;
-  uploadedAt: Date;
-  platformName: string;
-}
-
-export interface SpotifyArtistDTO {
-  name: string;
-  imageUrl: string;
-  genres: string[];
-  platformId: string;
 }

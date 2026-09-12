@@ -15,14 +15,14 @@ export const loginController = async (req: Request, res: Response) => {
 
   const { accessToken, refreshToken } = await authenticateUser(email, password);
 
-  res.cookie("refreshToken", refreshToken, {
+  res.cookie("__Secure-refresh", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/api/auth/refresh",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
-  res.cookie("accessToken", accessToken, {
+  res.cookie("__Host-session", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",

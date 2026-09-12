@@ -22,15 +22,23 @@ export const recentTracksInput = z.object({
     )
     .min(1),
 });
-
-export const listeningHistorySchema = z.object({
+const listeningHistorySchema = z.object({
   userId: z.string(),
   platformTrackId: z.string(),
   platformName: z.string(),
+  trackName: z.string(),
+  albumName: z.string(),
+  durationMs: z.number(),
   playedAt: z.coerce.date(),
   source: z.string(),
   uploadedAt: z.coerce.date().default(() => new Date()),
+  metadata: z.record(z.string(), z.any()),
+  artists: z.array(
+    z.object({
+      platformId: z.string(),
+      name: z.string(),
+    }),
+  ),
 });
 
 export const listeningHistoryArraySchema = z.array(listeningHistorySchema);
-// export type ListeningHistoryDTO = z.infer<typeof listeningHistorySchema>;

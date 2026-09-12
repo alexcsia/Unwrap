@@ -1,12 +1,11 @@
 import { ApiError } from "@/errors/ApiError";
-import { listeningHistoryArraySchema } from "../validators";
+import { listeningHistoryArraySchema } from "./validators";
 import { historyQueue } from "@/lib/queue";
-
-const BATCH_SIZE = 1000;
 
 export const processSpotifyEntries = async (
   rawEntries: any[],
   userId: string,
+  BATCH_SIZE = 1000,
 ) => {
   if (!userId) {
     throw new ApiError(500, "UNAUTHORIZED", "User ID is undefined");
@@ -61,8 +60,8 @@ export const processSpotifyEntries = async (
 
     console.log(result.data.length, "valid entries in batch", i);
     const jobs = result.data.map((entry) => ({
-      name: "sync-track",
-      data: { userId, entry },
+      name: "history-ingestion",
+      data: { userId, entry, platform: "spotify" },
       opts: {
         removeOnComplete: true,
         removeOnFail: { count: 1000 },
@@ -73,7 +72,7 @@ export const processSpotifyEntries = async (
 
     if (jobs.length > 0) {
       const createdJobs = await historyQueue.addBulk(jobs);
-      console.log(createdJobs.length, "jobs created for batch", i);
+      console.log(createdJobs?.length, "jobs created for batch", i);
     }
   }
 };

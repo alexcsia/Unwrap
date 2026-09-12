@@ -1,7 +1,7 @@
 import AdmZip from "adm-zip";
 import fs from "fs";
 import path from "path";
-import { processSpotifyEntries } from "./spotifyParser";
+import { processSpotifyEntries } from "@/platforms/spotify/spotifyParser";
 import { ApiError } from "@/errors/ApiError";
 
 const SPOTIFY_HISTORY_FOLDER = "Spotify Extended Streaming History";
@@ -42,7 +42,7 @@ export const spotifyUploadHandler = async (
   filePath: string,
   extractedPath: string,
   userId: string,
-) => {
+): Promise<{ success: boolean; message: string }> => {
   try {
     extractZip(filePath, extractedPath);
 

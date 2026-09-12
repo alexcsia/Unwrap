@@ -1,24 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
-import { exchangeSpotifyCode } from "@/services/auth/platforms/spotify";
+import { getPlatformAdapter } from "@/platforms/registry";
 import querystring from "querystring";
 
-/**
- * GET /auth/spotify/callback
- *
- * Endpoint for handling Spotify OAuth callback.
- * Expects query parameters: code and state.
- * Validates state and exchanges code for Spotify tokens.
- * Returns access and refresh tokens with expiration.
- * Redirects with error if state is missing.
- * Returns error if code is missing.
- */
-export const spotifyCallbackController = async (
+export const platformCallbackController = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
+    const { platform } = req.params;
     const code = req.query.code as string | undefined;
     const state = req.query.state as string | undefined;
 
@@ -32,13 +23,13 @@ export const spotifyCallbackController = async (
       throw new ApiError(400, "BAD_REQUEST", "Missing authorization code");
     }
 
-    const userId = req.user!.id;
-    const result = await exchangeSpotifyCode(userId, code);
+    const adapter = getPlatformAdapter(platform!);
+    await adapter.exchangeCode(req.user!.id, code);
 
     res.json({
       success: true,
-      message: "Spotify account connected successfully.",
-      platform: "spotify",
+      message: `${platform} account connected successfully.`,
+      platform,
     });
   } catch (error) {
     next(error);

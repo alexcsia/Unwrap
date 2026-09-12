@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { getTopTracksService } from "./getTopTracks";
+import { getTopTracksService } from "../getTopTracks.service";
 import prisma from "@/utils/prisma.util";
 
 mock.module("@/utils/prisma.util", () => ({

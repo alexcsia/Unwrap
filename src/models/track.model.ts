@@ -1,5 +1,5 @@
 import prisma from "@/utils/prisma.util";
-import type { SpotifyTrackDTO } from "@/services/listening-history/platforms/spotify/types";
+import type { SpotifyTrackDTO } from "@/platforms/spotify/types";
 import type { Track, Artist } from "@prisma/client";
 
 export const findOrCreateTrack = async (

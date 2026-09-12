@@ -8,8 +8,9 @@ import {
   createUserSchema,
   exclusionParamsSchema,
   getHistorySchema,
-  spotifyCallbackSchema,
+  OAuthCallbackSchema,
 } from "@/schemas";
+
 import type { ZodSchema } from "zod";
 
 const createMockFile = (
@@ -75,7 +76,7 @@ const testAnalyticsSchemas = <T extends { limit?: any; offset?: any }>(
     });
 
     test("should enforce maximum limit constraints", () => {
-      const payload = { limit: 150 }; // Max allowed is 100
+      const payload = { limit: 150 };
       const result = schema.safeParse(payload);
       expect(result.success).toBe(false);
     });
@@ -123,14 +124,14 @@ describe("Auth Schemas", () => {
     });
   });
 
-  describe("spotifyCallbackSchema", () => {
+  describe("OAuthCallbackSchema", () => {
     test("should pass when both optional query params are valid strings", () => {
       const payload = { code: "AQB123...", state: "xyz987" };
-      expect(spotifyCallbackSchema.safeParse(payload).success).toBe(true);
+      expect(OAuthCallbackSchema.safeParse(payload).success).toBe(true);
     });
 
     test("should pass when query params are completely empty", () => {
-      expect(spotifyCallbackSchema.safeParse({}).success).toBe(true);
+      expect(OAuthCallbackSchema.safeParse({}).success).toBe(true);
     });
   });
 });
