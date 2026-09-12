@@ -1,8 +1,7 @@
 import prisma from "@/utils/prisma.util";
 import { beforeEach, describe, expect, test } from "bun:test";
-import { deleteUserData } from "../deleteWorker";
+import { deleteUserData } from "../deleteUserData";
 
-console.log(Object.keys(prisma));
 const BATCH_SIZE = 20;
 
 export async function createUser() {

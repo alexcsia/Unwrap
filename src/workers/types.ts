@@ -1,6 +1,9 @@
-export interface HistorySyncJobData {
+import type { UserConnectedPlatforms } from "@/services/listeningHistory/types";
+
+export interface HistoryIngestionJobData {
   userId: string;
   entry: UploadData;
+  platform: string;
 }
 
 export interface DeleteUserJobData {
@@ -14,10 +17,10 @@ export interface UploadData {
   albumName: string;
   durationMs: number;
   source: string;
-  metadata: null;
+  isrc?: string;
+  metadata: any;
   playedAt: Date;
   uploadedAt: Date;
-  isrc: string | undefined;
   artists: UploadArtist[];
 }
 
@@ -26,6 +29,7 @@ export interface UploadArtist {
   name: string;
 }
 
-export interface SpotifyPollerData {
-  userId: string;
+export interface pollerData {
+  userConnectedPlatforms: UserConnectedPlatforms;
+  platform: string;
 }

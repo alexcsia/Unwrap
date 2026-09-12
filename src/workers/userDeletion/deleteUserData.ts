@@ -1,24 +1,4 @@
-import { Worker, Job } from "bullmq";
-import type { DeleteUserJobData } from "./types";
 import prisma from "@/utils/prisma.util";
-import { redisConnection } from "@/lib/queue";
-
-const BATCH_SIZE = 5000;
-
-const worker = new Worker<DeleteUserJobData>(
-  "delete-user",
-  async (job: Job<DeleteUserJobData>) => {
-    console.log("In worker.");
-    const { userId } = job.data;
-
-    await deleteUserData(userId, BATCH_SIZE, (deleted) => {
-      console.log(`Deleted ${deleted} rows for  ${userId}`);
-    });
-  },
-  {
-    connection: redisConnection,
-  },
-);
 
 export const deleteUserData = async (
   userId: string,
@@ -44,8 +24,6 @@ export const deleteUserData = async (
     onBatch?.(affectedRows);
 
     totalDeleted += affectedRows;
-
-    // console.log(`deleted ${BATCH_SIZE} rows for ${userId}`);
 
     if (affectedRows <= 0) {
       continueDeleting = false;
