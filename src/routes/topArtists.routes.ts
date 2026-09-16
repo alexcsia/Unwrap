@@ -1,4 +1,4 @@
-import { getTopArtistsController } from "@/controllers/top-artists/topArtists";
+import { getTopArtistsController } from "@/controllers/analytics/topArtists.controller";
 import express from "express";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";

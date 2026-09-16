@@ -1,14 +1,14 @@
-import { loginController } from "@/controllers/auth/login";
-import { logoutController } from "@/controllers/auth/logout";
-import { refreshController } from "@/controllers/auth/refresh";
+import { loginController } from "@/controllers/auth/login.controller";
+import { logoutController } from "@/controllers/auth/logout.controller";
+import { refreshController } from "@/controllers/auth/refresh.controller";
 import { checkAuth } from "@/middleware/auth.middleware";
 import express from "express";
 import { authLimiter } from "@/middleware/rateLimit.middleware";
-import { connectPlatformController } from "@/controllers/auth/connectPlatform";
+import { connectPlatformController } from "@/controllers/auth/connectPlatform.controller";
 import { validateRequest } from "@/middleware/validateRequest.middleware";
 import { loginSchema, OAuthCallbackSchema } from "@/schemas";
 import { validatePlatform } from "@/middleware/platform.middleware";
-import { platformCallbackController } from "@/controllers/auth/spotifyCallback";
+import { platformCallbackController } from "@/controllers/auth/platformCallback.controller";
 
 const router = express.Router();
 

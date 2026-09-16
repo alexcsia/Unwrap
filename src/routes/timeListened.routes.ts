@@ -1,5 +1,5 @@
 import express from "express";
-import { timeListenedController } from "@/controllers/time-listened/time-listened";
+import { timeListenedController } from "@/controllers/analytics/time-listened.controller";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
 import { validateRequest } from "@/middleware/validateRequest.middleware";

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
-import { timeListenedService } from "@/services/time-listened/time-listened";
+import { timeListenedService } from "@/services/analytics/timeListened.service";
 
 /**
  * GET /api/time-listened

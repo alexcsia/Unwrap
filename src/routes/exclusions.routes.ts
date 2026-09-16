@@ -2,7 +2,7 @@ import {
   addExclusionController,
   deleteExclusionController,
   getExclusionsController,
-} from "@/controllers/exclusions/exclusions";
+} from "@/controllers/exclusions/exclusions.controller";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
 import { validateRequest } from "@/middleware/validateRequest.middleware";

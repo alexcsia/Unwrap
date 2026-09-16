@@ -1,4 +1,4 @@
-import { getTopTracksController } from "@/controllers/top-tracks/topTracks";
+import { getTopTracksController } from "@/controllers/analytics/topTracks.controller";
 import express from "express";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";

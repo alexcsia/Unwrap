@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { getTopArtistsService } from "@/services/analytics/getTopArtists";
+import { getTopArtistsService } from "@/services/analytics/getTopArtists.service";
 import { ApiError } from "@/errors/ApiError";
 /**
  * GET /api/top-artists
