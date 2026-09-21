@@ -5,6 +5,8 @@ import { recentTracksInput } from "./validators";
 import z from "zod";
 import { refreshAccessToken } from "@/platforms/spotify/auth";
 import { type ConnectedPlatforms } from "@prisma/client";
+import { SpotifyRateLimitError } from "@/errors/spotifyRateLimitError";
+import { getRateLimitWait } from "@/lib/spotify/rateLimit";
 
 type recentTracksInput = z.infer<typeof recentTracksInput>;
 
@@ -12,6 +14,12 @@ export const fetchRecentTracks = async (
   user: UserConnectedPlatforms,
   cursor?: string, // timestamp in ms from redis
 ): Promise<recentTracksInput[]> => {
+  const rateLimitWait = await getRateLimitWait();
+
+  if (rateLimitWait !== null) {
+    throw new SpotifyRateLimitError(Math.ceil(rateLimitWait / 1000).toString());
+  }
+
   try {
     const spotifyApi = SpotifyApi.withAccessToken(
       process.env.SPOTIFY_CLIENT_ID!,
@@ -58,6 +66,16 @@ export const fetchRecentTracks = async (
       );
     }
 
+    const status = error?.response?.status ?? error?.status;
+
+    if (status === 429) {
+      const retryAfter =
+        error?.response?.headers?.["retry-after"] ??
+        error?.headers?.["retry-after"];
+
+      throw new SpotifyRateLimitError(retryAfter);
+    }
+
     throw new ApiError(
       502,
       "SPOTIFY_API_ERROR",
@@ -86,14 +104,9 @@ export const getSpotifyArtistIds = async (
   });
 
   if (response.status === 429) {
-    const retryAfter = Number(response.headers.get("retry-after")) || 30;
-    const error: any = new ApiError(
-      429,
-      "SPOTIFY_API_ERROR",
-      "Rate limit exceeded",
-    );
-    error.retryAfter = retryAfter;
-    throw error;
+    const retryAfter = response.headers.get("retry-after");
+
+    throw new SpotifyRateLimitError(retryAfter ?? undefined);
   }
 
   if (response.status === 401) {

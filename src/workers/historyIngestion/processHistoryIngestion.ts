@@ -3,6 +3,7 @@ import workerUtils from "../shared";
 import * as ingestionHelpers from "./helpers";
 import type { HistoryIngestionJobData } from "../types";
 import { getPlatformAdapter } from "@/platforms/registry";
+import { SpotifyRateLimitError } from "@/errors/spotifyRateLimitError";
 
 export async function processHistoryIngestion(
   job: Job<HistoryIngestionJobData>,
@@ -28,7 +29,7 @@ export async function processHistoryIngestion(
 
     return { status: "completed" };
   } catch (error: any) {
-    if (error.statusCode === 429) {
+    if (error instanceof SpotifyRateLimitError) {
       await workerUtils.rateLimits.respectRateLimit(error, job);
       return;
     }
