@@ -17,11 +17,15 @@ export const redisConnection = new IORedis(REDIS_URL, {
   maxRetriesPerRequest: null,
 });
 
-export const historyQueue = new Queue("history-sync", {
+export const historyQueue = new Queue("history-ingestion", {
   connection: redisConnection,
 });
 
 export const deleteQueue = new Queue("delete-user", {
+  connection: redisConnection,
+});
+
+export const pollQueue = new Queue("platform-poll", {
   connection: redisConnection,
 });
 
