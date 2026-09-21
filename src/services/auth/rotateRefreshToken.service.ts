@@ -31,13 +31,16 @@ export const rotateRefreshToken = async (oldToken: string) => {
   const session = await getValidSession(prisma, sessionId);
   await verifyRefreshToken(prisma, rawToken, session);
 
-  return prisma.$transaction(async (tx) => {
-    const tokens = await issueNewTokens(tx, session.userId);
+  return prisma.$transaction(
+    async (tx) => {
+      const tokens = await issueNewTokens(tx, session.userId);
 
-    await deleteOldSession(tx, session.id);
+      await deleteOldSession(tx, session.id);
 
-    return tokens;
-  });
+      return tokens;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
 };
 
 const parseRefreshToken = (token: string) => {
