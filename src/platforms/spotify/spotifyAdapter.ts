@@ -3,6 +3,7 @@ import type { PlatformAdapter } from "../types";
 import {
   disconnectSpotify,
   exchangeSpotifyCode,
+  handleSpotifyCallback,
   initiateOAuth,
   refreshAccessToken,
   revokeSpotifyToken,
@@ -20,6 +21,7 @@ export const spotifyAdapter: PlatformAdapter = {
   initiateOAuth: initiateOAuth,
   revokeToken: revokeSpotifyToken,
   disconnect: disconnectSpotify,
+  handleCallback: handleSpotifyCallback,
 
   //workers
   ingestHistory: spotifyIngestion,

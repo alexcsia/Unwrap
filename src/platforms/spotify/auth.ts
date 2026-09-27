@@ -4,9 +4,9 @@ import { addConnection } from "@/models/connectedPlatforms.model";
 import type { UserConnectedPlatforms } from "../../services/listeningHistory/types";
 import { pollQueue } from "@/lib/queue";
 import type { TokenExchangeResult } from "../types";
-import { randomBytes } from "crypto";
 import querystring from "querystring";
-import type { Response } from "express";
+import type { Response, Request } from "express";
+import { consumeOAuthState, createOAuthState } from "../shared/auth";
 
 /**
  * Service: exchangeSpotifyCode
@@ -57,6 +57,12 @@ export const exchangeSpotifyCode = async (
   });
 
   if (!response.ok) {
+    const body = await response.text().catch(() => "<unreadable>");
+
+    console.error("[spotify] token exchange failed", {
+      status: response.status,
+      body,
+    });
     throw new ApiError(
       502,
       "SPOTIFY_API_ERROR",
@@ -66,6 +72,14 @@ export const exchangeSpotifyCode = async (
 
   const data = await response.json();
   const { access_token, refresh_token, expires_in } = data;
+
+  if (!access_token || !expires_in) {
+    throw new ApiError(
+      502,
+      "SPOTIFY_API_ERROR",
+      "Spotify token response missing required fields",
+    );
+  }
 
   const userResponse = await fetch("https://api.spotify.com/v1/me", {
     headers: { Authorization: `Bearer ${access_token}` },
@@ -82,6 +96,12 @@ export const exchangeSpotifyCode = async (
       errorDetail = "Could not parse error body";
     }
 
+    console.error("[spotify] profile fetch failed", {
+      status,
+      statusText,
+      errorDetail,
+    });
+
     throw new ApiError(
       status || 502,
       "SPOTIFY_API_ERROR",
@@ -90,6 +110,15 @@ export const exchangeSpotifyCode = async (
   }
 
   const spotifyUserData = await userResponse.json();
+
+  const userExists = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+
+  if (!userExists) {
+    throw new ApiError(404, "NOT_FOUND", "User not found");
+  }
 
   const userConnectedPlatform = await prisma.connectedPlatforms.upsert({
     where: {
@@ -195,14 +224,15 @@ export const refreshAccessToken = async (
   return newAccessToken;
 };
 
-const generateRandomString = (length: number): string =>
-  randomBytes(length).toString("hex").slice(0, length);
-
-export const initiateOAuth = (res: Response): void => {
-  const state = generateRandomString(16);
+export const initiateOAuth = async (
+  res: Response,
+  userId: string,
+): Promise<{ redirectUrl: string }> => {
+  const state = await createOAuthState(userId, "spotify");
   const scope = "user-read-email user-read-recently-played";
-  res.redirect(
-    "https://accounts.spotify.com/authorize?" +
+  return {
+    redirectUrl:
+      "https://accounts.spotify.com/authorize?" +
       querystring.stringify({
         response_type: "code",
         client_id: process.env.SPOTIFY_CLIENT_ID!,
@@ -210,7 +240,7 @@ export const initiateOAuth = (res: Response): void => {
         redirect_uri: process.env.SPOTIFY_CALLBACK_URI!,
         state,
       }),
-  );
+  };
 };
 
 export const revokeSpotifyToken = async (
@@ -218,3 +248,32 @@ export const revokeSpotifyToken = async (
 ): Promise<void> => {};
 
 export const disconnectSpotify = async (userId: string): Promise<void> => {};
+
+export const handleSpotifyCallback = async (
+  userId: string,
+  query: Request["query"],
+): Promise<{ success: boolean; message: string }> => {
+  const code = query.code;
+  const state = query.state;
+
+  if (typeof state !== "string" || state.length === 0) {
+    throw new ApiError(400, "BAD_REQUEST", "Invalid or missing OAuth state");
+  }
+
+  const ok = await consumeOAuthState(userId, "spotify", state);
+  if (!ok) {
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      "Cached state does not match current user and/or platform",
+    );
+  }
+
+  if (typeof code !== "string" || code.length === 0) {
+    throw new ApiError(400, "BAD_REQUEST", "Missing authorization code");
+  }
+
+  await exchangeSpotifyCode(userId, code);
+
+  return { success: true, message: "Spotify connected" };
+};

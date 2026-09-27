@@ -1,30 +1,22 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
 import { getPlatformAdapter } from "@/platforms/registry";
-import querystring from "querystring";
 
 export const platformCallbackController = async (
   req: Request,
   res: Response,
   next: NextFunction,
-) => {
+): Promise<void> => {
   try {
     const { platform } = req.params;
-    const code = req.query.code as string | undefined;
-    const state = req.query.state as string | undefined;
+    const userId = req.user?.id;
 
-    if (!state) {
-      return res.redirect(
-        "/#" + querystring.stringify({ error: "state_mismatch" }),
-      );
-    }
-
-    if (!code) {
-      throw new ApiError(400, "BAD_REQUEST", "Missing authorization code");
+    if (!userId) {
+      throw new ApiError(401, "UNAUTHENTICATED", "No authenticated user");
     }
 
     const adapter = getPlatformAdapter(platform!);
-    await adapter.exchangeCode(req.user!.id, code);
+    await adapter.handleCallback(userId, req.query);
 
     res.json({
       success: true,
