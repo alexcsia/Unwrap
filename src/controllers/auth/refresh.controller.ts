@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { ApiError } from "@/errors/ApiError";
-import { rotateRefreshToken } from "@/services/auth/rotateRefreshToken";
+import { rotateRefreshToken } from "@/services/auth/rotateRefreshToken.service";
 
 /**
  * POST /auth/refresh

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { authenticateUser } from "@/services/auth/authenticateUser";
+import { authenticateUser } from "@/services/auth/authenticateUser.service";
 
 /**
  * POST /auth/login

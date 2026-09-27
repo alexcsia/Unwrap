@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { ApiError } from "@/errors/ApiError";
-import { logoutUser } from "@/services/auth/logoutUser";
+import { logoutUser } from "@/services/auth/logoutUser.service";
 
 /**
  * POST /auth/logout
