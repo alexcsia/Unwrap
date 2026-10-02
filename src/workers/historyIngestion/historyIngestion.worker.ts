@@ -1,8 +1,8 @@
 import { Worker, Job } from "bullmq";
 import type { HistoryIngestionJobData, UploadArtist } from "../types";
-import { redisConnection, redisCache } from "@/lib/queue";
+import { redisConnection, redisCache } from "@/lib/redis";
 import { processHistoryIngestion } from "./processHistoryIngestion";
-import { getPlatformAdapter } from "@/platforms/registry";
+
 /**
  * Service: history-sync Worker
  *
@@ -23,7 +23,7 @@ import { getPlatformAdapter } from "@/platforms/registry";
  * - Throws fatal errors for database failures, triggering BullMQ's automatic retry logic.
  */
 
-const worker = new Worker<HistoryIngestionJobData>(
+export const historyWorker = new Worker<HistoryIngestionJobData>(
   "history-ingestion",
   processHistoryIngestion,
   {
@@ -38,10 +38,12 @@ const worker = new Worker<HistoryIngestionJobData>(
   },
 );
 
-worker.on("completed", (job) =>
+historyWorker.on("completed", (job) =>
   console.log(`[Worker] Job ${job.id} completed`),
 );
-worker.on("failed", (job, err) =>
+historyWorker.on("failed", (job, err) =>
   console.error(`[Worker] Job ${job?.id} failed: ${err.message}`),
 );
-worker.on("error", (err) => console.error(`[Worker] Connection error:`, err));
+historyWorker.on("error", (err) =>
+  console.error(`[Worker] Connection error:`, err),
+);

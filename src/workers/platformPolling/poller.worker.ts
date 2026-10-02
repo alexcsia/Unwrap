@@ -1,9 +1,9 @@
 import type { pollerData } from "../types";
 import { Worker } from "bullmq";
-import { redisConnection } from "@/lib/queue";
+import { redisConnection } from "@/lib/redis";
 import { processPlatformPolling } from "./processPlatformPolling";
 
-const worker = new Worker<pollerData>(
+export const pollerWorker = new Worker<pollerData>(
   "platform-poll",
   processPlatformPolling,
 
@@ -20,10 +20,12 @@ const worker = new Worker<pollerData>(
   },
 );
 
-worker.on("completed", (job) =>
+pollerWorker.on("completed", (job) =>
   console.log(`[Poller] Job ${job.id} completed`),
 );
-worker.on("failed", (job, err) =>
+pollerWorker.on("failed", (job, err) =>
   console.error(`[Poller] Job ${job?.id} failed: ${err.message}`),
 );
-worker.on("error", (err) => console.error(`[Poller] Connection error:`, err));
+pollerWorker.on("error", (err) =>
+  console.error(`[Poller] Connection error:`, err),
+);
