@@ -1,4 +1,4 @@
-import { redisCache } from "../queue";
+import { redisCache } from "../redis";
 
 export const getRateLimitWait = async (): Promise<number | null> => {
   const waitUntil = await redisCache.get("spotify:rate-limited-until");

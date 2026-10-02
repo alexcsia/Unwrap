@@ -1,4 +1,4 @@
-import { redisCache } from "@/lib/queue";
+import { redisCache } from "@/lib/redis";
 import { Job } from "bullmq";
 
 export const CACHE_TTL_SEC = 7 * 24 * 3600; // 7 days
