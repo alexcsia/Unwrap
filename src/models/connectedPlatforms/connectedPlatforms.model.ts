@@ -1,21 +1,36 @@
-import prisma from "@/utils/prisma.util";
-import type { ConnectedPlatforms } from "@prisma/client";
-
 interface UserProfile {
   id: string;
   displayName: string;
   emails?: { value: string }[];
 }
-export const getPlatformConnection = (
+import prisma from "@/utils/prisma.util";
+import { ApiError } from "@/errors/ApiError";
+import type {
+  Platform,
+  PlatformConnectionMap,
+} from "@/models/connectedPlatforms/types";
+import { connectionMappers } from "./mappers";
+
+export async function getPlatformConnection<P extends Platform>(
   userId: string,
-  platform: string,
-): Promise<ConnectedPlatforms | null> => {
-  return prisma.connectedPlatforms.findUnique({
+  platform: P,
+): Promise<PlatformConnectionMap[P]> {
+  const connection = await prisma.connectedPlatforms.findUnique({
     where: {
-      userId_platformName: { userId, platformName: platform },
+      userId_platformName: {
+        userId,
+        platformName: platform,
+      },
     },
   });
-};
+
+  if (!connection) {
+    throw new ApiError(403, "FORBIDDEN", `No ${platform} connection found.`);
+  }
+
+  const mapper = connectionMappers[platform];
+  return mapper(connection);
+}
 
 export const connectSpotify = async (
   userId: string,
@@ -33,16 +48,16 @@ export const connectSpotify = async (
     },
     update: {
       platformUserId: spotifyId,
-      AccessToken: accessToken,
-      RefreshToken: refreshToken,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
       expiresAt: new Date(Date.now() + 3600 * 1000),
     },
     create: {
       userId,
       platformName: "spotify",
       platformUserId: spotifyId,
-      AccessToken: accessToken,
-      RefreshToken: refreshToken,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
       expiresAt: new Date(Date.now() + 3600 * 1000),
     },
   });
@@ -62,8 +77,8 @@ export const addConnection = async (
       },
     },
     data: {
-      AccessToken: accessToken,
-      RefreshToken: refreshToken,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
       expiresAt: new Date(Date.now() + expires * 1000),
     },
   });

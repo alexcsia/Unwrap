@@ -1,7 +1,7 @@
 import workerUtils from "../shared";
-import { redisCache } from "@/lib/queue";
+import { redisCache } from "@/lib/redis";
 import * as ingestionHelpers from "./helpers";
-import { getPlatformConnection } from "@/models/connectedPlatforms.model";
+import { getPlatformConnection } from "@/models/connectedPlatforms/connectedPlatforms.model";
 import type { UploadArtist, UploadData } from "../types";
 import type { IngestionResult } from "./types";
 

@@ -12,7 +12,7 @@ import { spotifyGetHistoryHandler } from "./getHistory";
 import { spotifyUploadHandler } from "./upload";
 import { spotifyPoller } from "@/workers/platformPolling/spotifyPoller";
 
-export const spotifyAdapter: PlatformAdapter = {
+export const spotifyAdapter: PlatformAdapter<"spotify"> = {
   platformName: "spotify",
 
   //auth

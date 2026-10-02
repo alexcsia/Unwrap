@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
 import { getPlatformAdapter } from "@/platforms/registry";
+import type { Platform } from "@/models/connectedPlatforms/types";
 
 export const connectPlatformController = async (
   req: Request,
@@ -18,7 +19,7 @@ export const connectPlatformController = async (
       throw new ApiError(400, "BAD_REQUEST", "Missing platform");
     }
 
-    const adapter = getPlatformAdapter(platform);
+    const adapter = getPlatformAdapter(platform as Platform);
     const { redirectUrl } = await adapter.initiateOAuth(res, userId);
     res.redirect(redirectUrl);
   } catch (error) {

@@ -1,16 +1,25 @@
-import type { ConnectedPlatforms } from "@prisma/client";
 import type { HistoryResponse } from "./spotify/types";
 import type { Request, Response } from "express";
 import type { UploadData } from "@/workers/types";
 import type { IngestionResult } from "@/workers/historyIngestion/types";
-import type { UserConnectedPlatforms } from "@/services/listeningHistory/types";
+import type {
+  Platform,
+  PlatformConnectionMap,
+} from "@/models/connectedPlatforms/types";
 
-export interface PlatformAdapter {
-  platformName: string;
+const platformRegistry: Record<Platform, true> = {
+  spotify: true,
+  lastfm: true,
+};
+
+export const allowedPlatforms = Object.keys(platformRegistry) as Platform[];
+
+export interface PlatformAdapter<P extends Platform> {
+  platformName: P;
 
   // auth
   exchangeCode?: (userId: string, code: string) => Promise<TokenExchangeResult>;
-  refreshToken?: (user: ConnectedPlatforms) => Promise<string>;
+  refreshToken?: (user: PlatformConnectionMap[P]) => Promise<string>;
   initiateOAuth: (
     res: Response,
     userId: string,
@@ -33,7 +42,7 @@ export interface PlatformAdapter {
     userId: string,
     entry: UploadData,
   ) => Promise<IngestionResult>;
-  poll?: (userConnectedPlatform: UserConnectedPlatforms) => void;
+  poll?: (connection: PlatformConnectionMap[P]) => void;
 }
 
 export interface TokenExchangeResult {
@@ -41,6 +50,3 @@ export interface TokenExchangeResult {
   refresh_token: string;
   expires_in: number;
 }
-
-export const allowedPlatforms = ["spotify", "lastfm"];
-export type Platform = (typeof allowedPlatforms)[number];

@@ -1,7 +1,7 @@
 import { ApiError } from "@/errors/ApiError";
 import type { Request, Response, NextFunction } from "express";
 import { allowedPlatforms } from "../platforms/types";
-import type { Platform } from "../platforms/types";
+import type { Platform } from "@/models/connectedPlatforms/types";
 
 /**
  * Middleware: validatePlatform
@@ -17,7 +17,7 @@ import type { Platform } from "../platforms/types";
 
 export const validatePlatform = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction,
 ) => {
   const { platform } = req.params;

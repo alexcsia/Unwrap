@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "@/errors/ApiError";
 import { getPlatformAdapter } from "@/platforms/registry";
+import type { Platform } from "@/models/connectedPlatforms/types";
 
 export const platformCallbackController = async (
   req: Request,
@@ -15,7 +16,7 @@ export const platformCallbackController = async (
       throw new ApiError(401, "UNAUTHENTICATED", "No authenticated user");
     }
 
-    const adapter = getPlatformAdapter(platform!);
+    const adapter = getPlatformAdapter(platform as Platform);
     await adapter.handleCallback(userId, req.query);
 
     res.json({

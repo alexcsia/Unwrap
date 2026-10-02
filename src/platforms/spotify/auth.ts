@@ -1,8 +1,8 @@
 import { ApiError } from "@/errors/ApiError";
 import prisma from "@/utils/prisma.util";
-import { addConnection } from "@/models/connectedPlatforms.model";
-import type { UserConnectedPlatforms } from "../../services/listeningHistory/types";
-import { pollQueue } from "@/lib/queue";
+import { addConnection } from "@/models/connectedPlatforms/connectedPlatforms.model";
+import type { SpotifyConnection } from "../../models/connectedPlatforms/types";
+import { pollQueue } from "@/lib/redis";
 import type { TokenExchangeResult } from "../types";
 import querystring from "querystring";
 import type { Response, Request } from "express";
@@ -128,8 +128,8 @@ export const exchangeSpotifyCode = async (
       },
     },
     update: {
-      AccessToken: access_token,
-      RefreshToken: refresh_token,
+      accessToken: access_token,
+      refreshToken: refresh_token,
       expiresAt: new Date(Date.now() + expires_in * 1000),
       platformUserId: spotifyUserData.id,
       connectedAt: new Date(),
@@ -138,8 +138,8 @@ export const exchangeSpotifyCode = async (
       userId,
       platformName: "spotify",
       platformUserId: spotifyUserData.id,
-      AccessToken: access_token,
-      RefreshToken: refresh_token,
+      accessToken: access_token,
+      refreshToken: refresh_token,
       expiresAt: new Date(Date.now() + expires_in * 1000),
       connectedAt: new Date(),
     },
@@ -147,11 +147,11 @@ export const exchangeSpotifyCode = async (
 
   await pollQueue.add(
     `poll:${userConnectedPlatform.userId}`,
-    { user: userConnectedPlatform },
+    { userId: userConnectedPlatform.userId, platform: "spotify" },
     {
       // repeat: { every: 30 * 60 * 1000 }, //30 min
       repeat: { every: 1 * 60 * 1000 },
-      jobId: `poll:${userId}`, // deduplicates, safe to call on reconnect
+      jobId: `poll:${userId}:spotify`, // deduplicates, safe to call on reconnect
       delay: Math.floor(Math.random() * 30 * 60 * 1000), // random offset within 30 min window
     },
   );
@@ -178,7 +178,7 @@ export const exchangeSpotifyCode = async (
  */
 
 export const refreshAccessToken = async (
-  user: UserConnectedPlatforms,
+  user: SpotifyConnection,
 ): Promise<string> => {
   const tokenEndpoint = "https://accounts.spotify.com/api/token";
 
@@ -190,7 +190,7 @@ export const refreshAccessToken = async (
 
   const params = new URLSearchParams({
     grant_type: "refresh_token",
-    refresh_token: user.RefreshToken,
+    refresh_token: user.refreshToken,
   });
 
   const response = await fetch(tokenEndpoint, {
@@ -216,7 +216,7 @@ export const refreshAccessToken = async (
   const data = await response.json();
 
   const newAccessToken = data.access_token;
-  const newRefreshToken = data.refresh_token || user.RefreshToken;
+  const newRefreshToken = data.refresh_token || user.refreshToken;
   const expiresIn = data.expires_in;
 
   await addConnection(user.userId, newAccessToken, newRefreshToken, expiresIn);

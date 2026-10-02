@@ -1,10 +1,9 @@
-import { getPlatformConnection } from "@/models/connectedPlatforms.model";
+import { getPlatformConnection } from "@/models/connectedPlatforms/connectedPlatforms.model";
 import { fetchRecentTracks } from "@/platforms/spotify/utils";
 import {
   findOrCreateTrack,
   connectArtistsAndTrack,
 } from "@/models/track.model";
-import { ApiError } from "@/errors/ApiError";
 import type {
   SpotifyArtistDTO,
   SpotifyListeningHistoryDTO,
@@ -41,10 +40,6 @@ export const spotifyGetHistoryHandler = async (
   offset = 0,
 ): Promise<HistoryResponse> => {
   const userSpotify = await getPlatformConnection(userId, "spotify");
-
-  if (!userSpotify) {
-    throw new ApiError(403, "FORBIDDEN", "No Spotify connection found.");
-  }
 
   const history = await fetchRecentTracks(userSpotify);
   const results = [];

@@ -1,17 +1,16 @@
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
-import type { UserConnectedPlatforms } from "../../services/listeningHistory/types";
+import type { SpotifyConnection } from "../../models/connectedPlatforms/types";
 import { ApiError } from "@/errors/ApiError";
 import { recentTracksInput } from "./validators";
 import z from "zod";
 import { refreshAccessToken } from "@/platforms/spotify/auth";
-import { type ConnectedPlatforms } from "@prisma/client";
 import { SpotifyRateLimitError } from "@/errors/spotifyRateLimitError";
 import { getRateLimitWait } from "@/lib/spotify/rateLimit";
 
 type recentTracksInput = z.infer<typeof recentTracksInput>;
 
 export const fetchRecentTracks = async (
-  user: UserConnectedPlatforms,
+  user: SpotifyConnection,
   cursor?: string, // timestamp in ms from redis
 ): Promise<recentTracksInput[]> => {
   const rateLimitWait = await getRateLimitWait();
@@ -24,10 +23,10 @@ export const fetchRecentTracks = async (
     const spotifyApi = SpotifyApi.withAccessToken(
       process.env.SPOTIFY_CLIENT_ID!,
       {
-        access_token: user.AccessToken,
+        access_token: user.accessToken,
         token_type: "Bearer",
         expires_in: 3600,
-        refresh_token: user.RefreshToken,
+        refresh_token: user.refreshToken,
       },
     );
 
@@ -61,7 +60,7 @@ export const fetchRecentTracks = async (
       const newAccessToken = await refreshAccessToken(user);
 
       return fetchRecentTracks(
-        { ...user, AccessToken: newAccessToken },
+        { ...user, accessToken: newAccessToken },
         cursor,
       );
     }
@@ -79,14 +78,14 @@ export const fetchRecentTracks = async (
     throw new ApiError(
       502,
       "SPOTIFY_API_ERROR",
-      "Failed to fetch Spotify listening history",
+      `Failed to fetch Spotify listening history: ${error}`,
     );
   }
 };
 
 export const getSpotifyArtistIds = async (
   trackUri: string,
-  connection: ConnectedPlatforms,
+  connection: SpotifyConnection,
 ): Promise<{ platformId: string; name: string }[]> => {
   const trackId = trackUri.includes(":") ? trackUri.split(":")[2] : trackUri;
 
@@ -100,7 +99,7 @@ export const getSpotifyArtistIds = async (
 
   const response = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
     method: "GET",
-    headers: { Authorization: `Bearer ${connection.AccessToken}` },
+    headers: { Authorization: `Bearer ${connection.accessToken}` },
   });
 
   if (response.status === 429) {
@@ -117,7 +116,7 @@ export const getSpotifyArtistIds = async (
 
     return getSpotifyArtistIds(trackUri, {
       ...connection,
-      AccessToken: newAccessToken,
+      accessToken: newAccessToken,
     });
   }
 

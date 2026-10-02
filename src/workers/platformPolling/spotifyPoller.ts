@@ -1,6 +1,5 @@
 import { fetchRecentTracks } from "@/platforms/spotify/utils";
-import { redisCache } from "@/lib/queue";
-import { getPlatformConnection } from "@/models/connectedPlatforms.model";
+import { redisCache } from "@/lib/redis";
 import { findOrCreateArtist } from "@/models/artist.model";
 import {
   connectArtistsAndTrack,
@@ -8,40 +7,27 @@ import {
 } from "@/models/track.model";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
 import prisma from "@/utils/prisma.util";
-import type { UserConnectedPlatforms } from "@/services/listeningHistory/types";
+import type { SpotifyConnection } from "@/models/connectedPlatforms/types";
 
 const CURSOR_TTL = 7 * 24 * 60 * 60; // 7 days
 
-export async function spotifyPoller(
-  userConnectedPlatforms: UserConnectedPlatforms,
-) {
-  const lockKey = `spotify-poll-lock:${userConnectedPlatforms.userId}`;
+export async function spotifyPoller(connection: SpotifyConnection) {
+  const lockKey = `spotify-poll-lock:${connection.userId}`;
   const lock = await redisCache.set(lockKey, "1", "EX", 25 * 60, "NX");
 
   if (!lock) {
-    console.log(
-      `Poller job for ${userConnectedPlatforms.userId} already running `,
-    );
+    console.log(`Poller job for ${connection.userId} already running `);
     return;
   }
 
   try {
-    const connection = await getPlatformConnection(
-      userConnectedPlatforms.userId,
-      "spotify",
-    );
-    if (!connection) return;
-
     // fetch only tracks newer than last cursor
-    const cursorKey = `spotify-cursor:${userConnectedPlatforms.userId}`;
+    const cursorKey = `spotify-cursor:${connection.userId}`;
     const cursor = await redisCache.get(cursorKey);
 
-    const tracks = await fetchRecentTracks(
-      userConnectedPlatforms,
-      cursor ?? undefined,
-    );
+    const tracks = await fetchRecentTracks(connection, cursor ?? undefined);
     if (tracks.length === 0) {
-      console.log(`No new tracks for ${userConnectedPlatforms.userId}`);
+      console.log(`No new tracks for ${connection.userId}`);
       return;
     }
 
@@ -68,7 +54,7 @@ export async function spotifyPoller(
               uploadedAt: entry.uploadedAt,
             },
             savedTrack.id,
-            userConnectedPlatforms.userId,
+            connection.userId,
           );
         });
       }),
@@ -84,7 +70,7 @@ export async function spotifyPoller(
   } finally {
     await redisCache.del(lockKey).catch((error) => {
       console.error(
-        `Failed to release poller lock for ${userConnectedPlatforms.userId}: ${error.message}`,
+        `Failed to release poller lock for ${connection.userId}: ${error.message}`,
       );
     });
   }

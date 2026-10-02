@@ -1,9 +1,9 @@
-import type { UserConnectedPlatforms } from "@/services/listeningHistory/types";
+import type { Platform } from "@/models/connectedPlatforms/types";
 
 export interface HistoryIngestionJobData {
   userId: string;
   entry: UploadData;
-  platform: string;
+  platform: Platform;
 }
 
 export interface DeleteUserJobData {
@@ -30,6 +30,6 @@ export interface UploadArtist {
 }
 
 export interface pollerData {
-  userConnectedPlatforms: UserConnectedPlatforms;
-  platform: string;
+  userId: string;
+  platform: Platform;
 }

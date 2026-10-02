@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { redisCache } from "@/lib/queue";
+import { redisCache } from "@/lib/redis";
 
 export const STATE_TTL_SECONDS = 10 * 60; // 10 min
 

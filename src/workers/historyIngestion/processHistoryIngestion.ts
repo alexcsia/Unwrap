@@ -20,6 +20,9 @@ export async function processHistoryIngestion(
   console.log(`[Job ${job.id}] Processing: "${entry.trackName}"`);
 
   try {
+    if (!adapter.ingestHistory) {
+      throw new Error(`${platform} does not support history ingestion`);
+    }
     const result = await adapter.ingestHistory(userId, entry);
 
     if (result.status === "retry") {

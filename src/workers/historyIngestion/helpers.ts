@@ -11,14 +11,14 @@ import {
   findOrCreateTrack,
   connectArtistsAndTrack,
 } from "@/models/track.model";
-import type { ConnectedPlatforms } from "@prisma/client";
 import type {
   UploadData,
   UploadArtist,
   HistoryIngestionJobData,
 } from "../types";
 import { CACHE_TTL_SEC } from "../shared/rateLimit";
-import { redisCache } from "@/lib/queue";
+import { redisCache } from "@/lib/redis";
+import type { SpotifyConnection } from "@/models/connectedPlatforms/types";
 
 export const saveHistoryRecords = async (
   track: SpotifyTrackDTO,
@@ -79,7 +79,7 @@ export const toSpotifyDTOs = (
 
 export const fetchAndCacheSpotifyArtists = async (
   entry: UploadData,
-  connection: ConnectedPlatforms,
+  connection: SpotifyConnection,
   cacheKey: string,
 ): Promise<UploadArtist[]> => {
   const artistsFromSpotify = await getSpotifyArtistIds(
