@@ -1,7 +1,6 @@
 import { ApiError } from "@/errors/ApiError";
 import { listeningHistoryArraySchema } from "./validators";
 import { historyQueue } from "@/lib/queue";
-import { spotifyAdapter } from "./spotifyAdapter";
 
 export const createSpotifyEntriesProcessor = (queue: typeof historyQueue) => {
   return async (rawEntries: any[], userId: string, BATCH_SIZE = 1000) => {
@@ -63,7 +62,7 @@ export const createSpotifyEntriesProcessor = (queue: typeof historyQueue) => {
       console.log(result.data.length, "valid entries in batch", i);
       const jobs = result.data.map((entry) => ({
         name: "history-ingestion",
-        data: { userId, entry, platform: spotifyAdapter.platformName },
+        data: { userId, entry, platform: "spotify" },
         opts: {
           removeOnComplete: true,
           removeOnFail: { count: 1000 },

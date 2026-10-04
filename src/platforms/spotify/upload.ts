@@ -39,67 +39,73 @@ interface ISpotifyListeningEntry {
  * - 500 if file system operations or ZIP extraction fails
  */
 
-export const spotifyUploadHandler = async (
-  filePath: string,
-  extractedPath: string,
-  userId: string,
-): Promise<{ success: boolean; message: string }> => {
-  try {
-    extractZip(filePath, extractedPath);
+export const createSpotifyUploadHandler = (
+  processor = createSpotifyEntriesProcessor(historyQueue),
+) => {
+  return async (
+    filePath: string,
+    extractedPath: string,
+    userId: string,
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      extractZip(filePath, extractedPath);
 
-    const historyDir = path.join(extractedPath, SPOTIFY_HISTORY_FOLDER);
+      const historyDir = path.join(extractedPath, SPOTIFY_HISTORY_FOLDER);
 
-    if (!fs.existsSync(historyDir)) {
-      throw new ApiError(
-        400,
-        "INVALID_UPLOAD",
-        "Spotify history folder not found",
+      if (!fs.existsSync(historyDir)) {
+        throw new ApiError(
+          400,
+          "INVALID_UPLOAD",
+          "Spotify history folder not found",
+        );
+      }
+
+      const jsonFiles = getJsonFiles(historyDir);
+      let totalEntriesProcessed = 0;
+
+      console.log(
+        jsonFiles.length,
+        "JSON files found in Spotify history upload",
       );
+
+      for (const file of jsonFiles) {
+        const entries = readListeningEntries(historyDir, file);
+        await processor(entries, userId);
+        totalEntriesProcessed += entries.length;
+      }
+      return {
+        success: true,
+        message: `Sync started for ${totalEntriesProcessed} tracks across ${jsonFiles.length} files.`,
+      };
+    } finally {
+      cleanup(filePath, extractedPath);
+    }
+  };
+
+  function extractZip(filePath: string, extractedPath: string) {
+    const zip = new AdmZip(filePath);
+    zip.extractAllTo(extractedPath, true);
+  }
+
+  function getJsonFiles(directory: string): string[] {
+    return fs.readdirSync(directory).filter((file) => file.endsWith(".json"));
+  }
+
+  function readListeningEntries(
+    directory: string,
+    file: string,
+  ): ISpotifyListeningEntry[] {
+    const fileContent = fs.readFileSync(path.join(directory, file), "utf-8");
+    return JSON.parse(fileContent);
+  }
+
+  function cleanup(filePath: string, extractedPath: string) {
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
     }
 
-    const jsonFiles = getJsonFiles(historyDir);
-    let totalEntriesProcessed = 0;
-
-    console.log(jsonFiles.length, "JSON files found in Spotify history upload");
-
-    const processor = createSpotifyEntriesProcessor(historyQueue);
-    for (const file of jsonFiles) {
-      const entries = readListeningEntries(historyDir, file);
-      await processor(entries, userId);
-      totalEntriesProcessed += entries.length;
+    if (extractedPath && fs.existsSync(extractedPath)) {
+      fs.rmSync(extractedPath, { recursive: true, force: true });
     }
-    return {
-      success: true,
-      message: `Sync started for ${totalEntriesProcessed} tracks across ${jsonFiles.length} files.`,
-    };
-  } finally {
-    cleanup(filePath, extractedPath);
   }
 };
-
-function extractZip(filePath: string, extractedPath: string) {
-  const zip = new AdmZip(filePath);
-  zip.extractAllTo(extractedPath, true);
-}
-
-function getJsonFiles(directory: string): string[] {
-  return fs.readdirSync(directory).filter((file) => file.endsWith(".json"));
-}
-
-function readListeningEntries(
-  directory: string,
-  file: string,
-): ISpotifyListeningEntry[] {
-  const fileContent = fs.readFileSync(path.join(directory, file), "utf-8");
-  return JSON.parse(fileContent);
-}
-
-function cleanup(filePath: string, extractedPath: string) {
-  if (filePath && fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-
-  if (extractedPath && fs.existsSync(extractedPath)) {
-    fs.rmSync(extractedPath, { recursive: true, force: true });
-  }
-}
