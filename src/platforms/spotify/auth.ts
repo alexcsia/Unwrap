@@ -2,7 +2,7 @@ import { ApiError } from "@/errors/ApiError";
 import prisma from "@/utils/prisma.util";
 import { addConnection } from "@/models/connectedPlatforms/connectedPlatforms.model";
 import type { SpotifyConnection } from "../../models/connectedPlatforms/types";
-import { pollQueue } from "@/lib/redis";
+import { pollQueue } from "@/lib/queue";
 import type { TokenExchangeResult } from "../types";
 import querystring from "querystring";
 import type { Response, Request } from "express";

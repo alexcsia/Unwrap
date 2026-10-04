@@ -1,5 +1,5 @@
 import prisma from "@/utils/prisma.util";
-import { deleteQueue } from "@/lib/redis";
+import { deleteQueue } from "@/lib/queue";
 
 export const deleteUserService = async (userId: string) => {
   //batch delete listening history in a queue

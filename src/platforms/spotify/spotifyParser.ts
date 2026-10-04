@@ -1,6 +1,6 @@
 import { ApiError } from "@/errors/ApiError";
 import { listeningHistoryArraySchema } from "./validators";
-import { historyQueue } from "@/lib/redis";
+import { historyQueue } from "@/lib/queue";
 import { spotifyAdapter } from "./spotifyAdapter";
 
 export const processSpotifyEntries = async (
