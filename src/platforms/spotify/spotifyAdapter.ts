@@ -8,7 +8,7 @@ import {
   refreshAccessToken,
   revokeSpotifyToken,
 } from "./auth";
-import { spotifyGetHistoryHandler } from "./getHistory";
+import { createSpotifyGetHistoryHandler } from "./getHistory";
 import { spotifyUploadHandler } from "./upload";
 import { spotifyPoller } from "@/workers/platformPolling/spotifyPoller";
 
@@ -28,6 +28,6 @@ export const spotifyAdapter: PlatformAdapter<"spotify"> = {
   poll: spotifyPoller,
 
   //history
-  getHistory: spotifyGetHistoryHandler,
+  getHistory: createSpotifyGetHistoryHandler(),
   uploadHistory: spotifyUploadHandler,
 };

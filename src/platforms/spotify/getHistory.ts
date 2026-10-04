@@ -1,5 +1,5 @@
 import { getPlatformConnection } from "@/models/connectedPlatforms/connectedPlatforms.model";
-import { fetchRecentTracks } from "@/platforms/spotify/utils";
+import * as spotifyUtils from "@/platforms/spotify/utils";
 import {
   findOrCreateTrack,
   connectArtistsAndTrack,
@@ -34,92 +34,101 @@ import { findOrCreateArtist } from "@/models/artist.model";
  * - 502 (inherited) if Spotify API communication fails
  */
 
-export const spotifyGetHistoryHandler = async (
-  userId: string,
-  limit = 50,
-  offset = 0,
-): Promise<HistoryResponse> => {
-  const userSpotify = await getPlatformConnection(userId, "spotify");
+interface SpotifyUtils {
+  fetchRecentTracks: typeof spotifyUtils.fetchRecentTracks;
+  getSpotifyArtistIds: typeof spotifyUtils.getSpotifyArtistIds;
+}
 
-  const history = await fetchRecentTracks(userSpotify);
-  const results = [];
+export const createSpotifyGetHistoryHandler = (
+  utils: SpotifyUtils = spotifyUtils,
+) => {
+  return async (
+    userId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<HistoryResponse> => {
+    const userSpotify = await getPlatformConnection(userId, "spotify");
 
-  for (const item of history) {
-    const track: SpotifyTrackDTO = {
-      platformTrackId: item.platformTrackId,
-      trackName: item.trackName,
-      albumName: item.albumName,
-      durationMs: item.durationMs,
-      metadata: item.metadata,
-      isrc: item.isrc,
-    };
+    const history = await utils.fetchRecentTracks(userSpotify);
+    const results = [];
 
-    const ListeningHistory: SpotifyListeningHistoryDTO = {
-      playedAt: item.playedAt,
-      platformName: item.platformName,
-      source: item.source,
-      uploadedAt: item.uploadedAt,
-    };
-
-    const artists: SpotifyArtistDTO[] = item.artists.map((trackArtist) => {
-      return {
-        name: trackArtist.name,
-        genres: [],
-        imageUrl: "",
-        platformId: trackArtist.platformId,
+    for (const item of history) {
+      const track: SpotifyTrackDTO = {
+        platformTrackId: item.platformTrackId,
+        trackName: item.trackName,
+        albumName: item.albumName,
+        durationMs: item.durationMs,
+        metadata: item.metadata,
+        isrc: item.isrc,
       };
-    });
 
-    const savedArtistEntry = await findOrCreateArtist(
-      artists,
-      item.platformName,
-    );
+      const ListeningHistory: SpotifyListeningHistoryDTO = {
+        playedAt: item.playedAt,
+        platformName: item.platformName,
+        source: item.source,
+        uploadedAt: item.uploadedAt,
+      };
 
-    const savedTrackEntry = await findOrCreateTrack(track, item.platformName);
+      const artists: SpotifyArtistDTO[] = item.artists.map((trackArtist) => {
+        return {
+          name: trackArtist.name,
+          genres: [],
+          imageUrl: "",
+          platformId: trackArtist.platformId,
+        };
+      });
 
-    await connectArtistsAndTrack(savedTrackEntry!, savedArtistEntry);
+      const savedArtistEntry = await findOrCreateArtist(
+        artists,
+        item.platformName,
+      );
 
-    const savedLHEntry = await saveListeningHistory(
-      ListeningHistory,
-      savedTrackEntry!.id,
-      userSpotify.userId,
-    );
-    if (savedArtistEntry && savedTrackEntry && savedLHEntry)
-      results.push({ savedTrackEntry, savedArtistEntry, savedLHEntry });
-  }
+      const savedTrackEntry = await findOrCreateTrack(track, item.platformName);
 
-  console.log(`Saved ${results.length} new entries to the database.`);
+      await connectArtistsAndTrack(savedTrackEntry!, savedArtistEntry);
 
-  const formattedHistory = results.map((entry) => ({
-    track: {
-      trackName: entry.savedTrackEntry.trackName,
-      albumName: entry.savedTrackEntry.albumName,
-      durationMs: entry.savedTrackEntry.durationMs,
-      trackId: entry.savedTrackEntry.id,
-    },
-    artists: {
-      artistsNames: entry.savedArtistEntry.map((artist) => artist.name),
-      id: entry.savedArtistEntry.map((artist) => artist.id),
-      imageUrl: entry.savedArtistEntry.map((artist) => artist.imageUrl),
-      genres: entry.savedArtistEntry.flatMap((artist) => artist.genres),
-    },
-    listeningEvent: {
-      trackId: entry.savedLHEntry.id,
-      playedAt: entry.savedLHEntry.playedAt,
-      source: entry.savedLHEntry.source,
-      uploadedAt: entry.savedLHEntry.uploadedAt,
-    },
-  }));
+      const savedLHEntry = await saveListeningHistory(
+        ListeningHistory,
+        savedTrackEntry!.id,
+        userSpotify.userId,
+      );
+      if (savedArtistEntry && savedTrackEntry && savedLHEntry)
+        results.push({ savedTrackEntry, savedArtistEntry, savedLHEntry });
+    }
 
-  return {
-    pagination: {
-      limit,
-      offset,
-      total: formattedHistory.length,
-      hasMore: false,
-      nextOffset: null,
-      previousOffset: null,
-    },
-    history: formattedHistory,
+    console.log(`Saved ${results.length} new entries to the database.`);
+
+    const formattedHistory = results.map((entry) => ({
+      track: {
+        trackName: entry.savedTrackEntry.trackName,
+        albumName: entry.savedTrackEntry.albumName,
+        durationMs: entry.savedTrackEntry.durationMs,
+        trackId: entry.savedTrackEntry.id,
+      },
+      artists: {
+        artistsNames: entry.savedArtistEntry.map((artist) => artist.name),
+        id: entry.savedArtistEntry.map((artist) => artist.id),
+        imageUrl: entry.savedArtistEntry.map((artist) => artist.imageUrl),
+        genres: entry.savedArtistEntry.flatMap((artist) => artist.genres),
+      },
+      listeningEvent: {
+        trackId: entry.savedLHEntry.id,
+        playedAt: entry.savedLHEntry.playedAt,
+        source: entry.savedLHEntry.source,
+        uploadedAt: entry.savedLHEntry.uploadedAt,
+      },
+    }));
+
+    return {
+      pagination: {
+        limit,
+        offset,
+        total: formattedHistory.length,
+        hasMore: false,
+        nextOffset: null,
+        previousOffset: null,
+      },
+      history: formattedHistory,
+    };
   };
 };
