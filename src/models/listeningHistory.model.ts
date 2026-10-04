@@ -27,3 +27,18 @@ export const saveListeningHistory = async (
     throw error;
   }
 };
+
+export const getListeningHistoryForPeriod = (
+  userId: string,
+  start: Date,
+  end: Date,
+) =>
+  prisma.listeningHistory.findMany({
+    where: {
+      userId,
+      playedAt: { gte: start, lt: end },
+    },
+    select: {
+      track: { select: { durationMs: true } },
+    },
+  });

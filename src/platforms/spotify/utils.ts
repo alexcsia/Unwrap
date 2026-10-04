@@ -9,6 +9,25 @@ import { getRateLimitWait } from "@/lib/spotify/rateLimit";
 
 type recentTracksInput = z.infer<typeof recentTracksInput>;
 
+export type SpotifyHistoryItem = {
+  platformTrackId: string;
+  trackName: string;
+  albumName: string;
+  durationMs: number;
+  playedAt: Date;
+  platformName: string;
+  source: string;
+  uploadedAt: Date;
+  metadata: unknown;
+  isrc?: string;
+  artists: {
+    name: string;
+    platformId: string;
+    genres?: string[];
+    imageUrl?: string;
+  }[];
+};
+
 export const fetchRecentTracks = async (
   user: SpotifyConnection,
   cursor?: string, // timestamp in ms from redis

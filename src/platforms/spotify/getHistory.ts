@@ -4,43 +4,22 @@ import {
   findOrCreateTrack,
   connectArtistsAndTrack,
 } from "@/models/track.model";
+import { saveListeningHistory } from "@/models/listeningHistory.model";
+import { findOrCreateArtist } from "@/models/artist.model";
+import type { Artist, Track, ListeningHistory } from "@prisma/client";
 import type {
   SpotifyArtistDTO,
   SpotifyListeningHistoryDTO,
   SpotifyTrackDTO,
+  HistoryResponse,
 } from "./types";
-import type { HistoryResponse } from "./types";
-import { saveListeningHistory } from "@/models/listeningHistory.model";
-import { findOrCreateArtist } from "@/models/artist.model";
-
-/**
- * Service: spotifyGetHistoryHandler
- *
- * Retrieves and persists recent Spotify listening history for a user.
- *
- * Flow:
- * - Retrieves existing Spotify platform connection/credentials
- * - Fetches "Recently Played" tracks from Spotify API
- * - Iterates through tracks and attempts to save them to the DB
- * - Filters for successfully saved/newly created entries
- * - Formats DB entries into a paginated history response
- *
- * Returns:
- * - pagination: Metadata regarding limits, offsets, and totals
- * - history: Array of formatted HistoryEntry objects including track and artist data
- *
- * Errors:
- * - 404 if no active Spotify connection/token is found for the user
- * - 502 (inherited) if Spotify API communication fails
- */
-
-interface SpotifyUtils {
-  fetchRecentTracks: typeof spotifyUtils.fetchRecentTracks;
-  getSpotifyArtistIds: typeof spotifyUtils.getSpotifyArtistIds;
-}
+import type { SpotifyHistoryItem } from "@/platforms/spotify/utils";
 
 export const createSpotifyGetHistoryHandler = (
-  utils: SpotifyUtils = spotifyUtils,
+  utils: {
+    fetchRecentTracks: typeof spotifyUtils.fetchRecentTracks;
+    getSpotifyArtistIds: typeof spotifyUtils.getSpotifyArtistIds;
+  } = spotifyUtils,
 ) => {
   return async (
     userId: string,
@@ -48,87 +27,123 @@ export const createSpotifyGetHistoryHandler = (
     offset = 0,
   ): Promise<HistoryResponse> => {
     const userSpotify = await getPlatformConnection(userId, "spotify");
-
     const history = await utils.fetchRecentTracks(userSpotify);
-    const results = [];
+
+    const results: SavedEntry[] = [];
 
     for (const item of history) {
-      const track: SpotifyTrackDTO = {
-        platformTrackId: item.platformTrackId,
-        trackName: item.trackName,
-        albumName: item.albumName,
-        durationMs: item.durationMs,
-        metadata: item.metadata,
-        isrc: item.isrc,
-      };
-
-      const ListeningHistory: SpotifyListeningHistoryDTO = {
-        playedAt: item.playedAt,
-        platformName: item.platformName,
-        source: item.source,
-        uploadedAt: item.uploadedAt,
-      };
-
-      const artists: SpotifyArtistDTO[] = item.artists.map((trackArtist) => {
-        return {
-          name: trackArtist.name,
-          genres: [],
-          imageUrl: "",
-          platformId: trackArtist.platformId,
-        };
-      });
-
-      const savedArtistEntry = await findOrCreateArtist(
-        artists,
+      const entry = await persistHistoryItem(
+        item,
         item.platformName,
-      );
-
-      const savedTrackEntry = await findOrCreateTrack(track, item.platformName);
-
-      await connectArtistsAndTrack(savedTrackEntry!, savedArtistEntry);
-
-      const savedLHEntry = await saveListeningHistory(
-        ListeningHistory,
-        savedTrackEntry!.id,
         userSpotify.userId,
       );
-      if (savedArtistEntry && savedTrackEntry && savedLHEntry)
-        results.push({ savedTrackEntry, savedArtistEntry, savedLHEntry });
+
+      if (
+        entry.savedArtistEntry &&
+        entry.savedTrackEntry &&
+        entry.savedLHEntry
+      ) {
+        results.push(entry);
+      }
     }
 
     console.log(`Saved ${results.length} new entries to the database.`);
 
-    const formattedHistory = results.map((entry) => ({
-      track: {
-        trackName: entry.savedTrackEntry.trackName,
-        albumName: entry.savedTrackEntry.albumName,
-        durationMs: entry.savedTrackEntry.durationMs,
-        trackId: entry.savedTrackEntry.id,
-      },
-      artists: {
-        artistsNames: entry.savedArtistEntry.map((artist) => artist.name),
-        id: entry.savedArtistEntry.map((artist) => artist.id),
-        imageUrl: entry.savedArtistEntry.map((artist) => artist.imageUrl),
-        genres: entry.savedArtistEntry.flatMap((artist) => artist.genres),
-      },
-      listeningEvent: {
-        trackId: entry.savedLHEntry.id,
-        playedAt: entry.savedLHEntry.playedAt,
-        source: entry.savedLHEntry.source,
-        uploadedAt: entry.savedLHEntry.uploadedAt,
-      },
-    }));
-
     return {
-      pagination: {
-        limit,
-        offset,
-        total: formattedHistory.length,
-        hasMore: false,
-        nextOffset: null,
-        previousOffset: null,
-      },
-      history: formattedHistory,
+      pagination: buildPagination(limit, offset, results.length),
+      history: results.map(formatHistoryEntry),
     };
   };
+};
+
+type SavedEntry = {
+  savedTrackEntry: Track;
+  savedArtistEntry: Artist[];
+  savedLHEntry: ListeningHistory;
+};
+
+const toTrackDTO = (item: SpotifyHistoryItem): SpotifyTrackDTO => ({
+  platformTrackId: item.platformTrackId,
+  trackName: item.trackName,
+  albumName: item.albumName,
+  durationMs: item.durationMs,
+  metadata: item.metadata,
+  isrc: item.isrc,
+});
+
+const toListeningHistoryDTO = (
+  item: SpotifyHistoryItem,
+): SpotifyListeningHistoryDTO => ({
+  playedAt: item.playedAt,
+  platformName: item.platformName,
+  source: item.source,
+  uploadedAt: item.uploadedAt,
+});
+
+const toArtistDTOs = (item: SpotifyHistoryItem): SpotifyArtistDTO[] =>
+  item.artists.map((artist) => ({
+    name: artist.name,
+    genres: [],
+    imageUrl: "",
+    platformId: artist.platformId,
+  }));
+
+const formatHistoryEntry = (entry: SavedEntry) => ({
+  track: {
+    trackName: entry.savedTrackEntry.trackName,
+    albumName: entry.savedTrackEntry.albumName,
+    durationMs: entry.savedTrackEntry.durationMs,
+    trackId: entry.savedTrackEntry.id,
+  },
+  artists: {
+    artistsNames: entry.savedArtistEntry.map((a) => a.name),
+    id: entry.savedArtistEntry.map((a) => a.id),
+    imageUrl: entry.savedArtistEntry.map((a) => a.imageUrl),
+    genres: entry.savedArtistEntry.flatMap((a) => a.genres),
+  },
+  listeningEvent: {
+    trackId: entry.savedLHEntry.id,
+    playedAt: entry.savedLHEntry.playedAt,
+    source: entry.savedLHEntry.source,
+    uploadedAt: entry.savedLHEntry.uploadedAt,
+  },
+});
+
+const buildPagination = (
+  limit: number,
+  offset: number,
+  total: number,
+): HistoryResponse["pagination"] => ({
+  limit,
+  offset,
+  total,
+  hasMore: false,
+  nextOffset: null,
+  previousOffset: null,
+});
+
+const persistHistoryItem = async (
+  item: SpotifyHistoryItem,
+  platformName: string,
+  userId: string,
+): Promise<SavedEntry> => {
+  const savedArtistEntry = await findOrCreateArtist(
+    toArtistDTOs(item),
+    platformName,
+  );
+
+  const savedTrackEntry = await findOrCreateTrack(
+    toTrackDTO(item),
+    platformName,
+  );
+
+  await connectArtistsAndTrack(savedTrackEntry!, savedArtistEntry);
+
+  const savedLHEntry = await saveListeningHistory(
+    toListeningHistoryDTO(item),
+    savedTrackEntry!.id,
+    userId,
+  );
+
+  return { savedTrackEntry, savedArtistEntry, savedLHEntry };
 };
