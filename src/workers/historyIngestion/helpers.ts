@@ -49,7 +49,6 @@ export const toSpotifyDTOs = (
   listeningHistory: SpotifyListeningHistoryDTO;
   artists: SpotifyArtistDTO[];
 } => {
-  console.log("inside dto", resolvedArtists);
   const track: SpotifyTrackDTO = {
     platformTrackId: entry.platformTrackId,
     trackName: entry.trackName,

@@ -1,7 +1,7 @@
-import { Worker, Job } from "bullmq";
-import type { HistoryIngestionJobData, UploadArtist } from "../types";
-import { redisConnection, redisCache } from "@/lib/redis";
-import { processHistoryIngestion } from "./processHistoryIngestion";
+import { Worker } from "bullmq";
+import type { HistoryIngestionJobData } from "../types";
+import { redisConnection } from "@/lib/redis";
+import { createHistoryIngestionProcessor } from "./processHistoryIngestion";
 
 /**
  * Service: history-sync Worker
@@ -25,7 +25,7 @@ import { processHistoryIngestion } from "./processHistoryIngestion";
 
 export const historyWorker = new Worker<HistoryIngestionJobData>(
   "history-ingestion",
-  processHistoryIngestion,
+  createHistoryIngestionProcessor(),
   {
     connection: redisConnection,
     limiter: {

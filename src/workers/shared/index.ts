@@ -1,6 +1,11 @@
-import * as locks from "./locks";
-import * as rateLimits from "./rateLimit";
+import { locks } from "./locks";
+import { rateLimits } from "./rateLimit";
 
-const workerUtils = { locks, rateLimits };
+const workerUtils = {
+  locks,
+  rateLimits,
+};
 
 export default workerUtils;
+
+export type WorkerUtils = typeof workerUtils;

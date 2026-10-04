@@ -1,34 +1,30 @@
 import { describe, expect, test, beforeEach, mock } from "bun:test";
 import type { Job } from "bullmq";
+import { SpotifyRateLimitError } from "@/errors/spotifyRateLimitError";
 import type { HistoryIngestionJobData } from "@/workers/types";
-import { processHistoryIngestion } from "../processHistoryIngestion";
+import { createHistoryIngestionProcessor } from "../processHistoryIngestion";
+import type { WorkerUtils } from "../../shared";
 
 const mockCheckRateLimited = mock();
 const mockRespectRateLimit = mock();
 const mockIngestHistory = mock();
 const mockGetPlatformAdapter = mock();
 
-const mockRedisGet = mock();
-const mockRedisExpire = mock();
-const mockRedisDel = mock();
-
-mock.module("@/services/redis", () => ({
-  redisCache: {
-    get: mockRedisGet,
-    expire: mockRedisExpire,
-    del: mockRedisDel,
+const mockedUtils: WorkerUtils = {
+  locks: {
+    acquireEnrichmentLock: mock(),
   },
-  redisConnection: {},
-}));
+  rateLimits: {
+    checkRateLimited: mockCheckRateLimited,
+    respectRateLimit: mockRespectRateLimit,
+    CACHE_TTL_SEC: 1112121,
+  },
+};
 
-mock.module("@/utils/rateLimit.util", () => ({
-  checkRateLimited: mockCheckRateLimited,
-  respectRateLimit: mockRespectRateLimit,
-}));
-
-mock.module("@/platforms/registry", () => ({
-  getPlatformAdapter: mockGetPlatformAdapter,
-}));
+const processHistoryIngestion = createHistoryIngestionProcessor(
+  mockedUtils,
+  mockGetPlatformAdapter,
+);
 
 const userId = "user-123";
 
@@ -48,18 +44,28 @@ const job = {
   id: "job-123",
   data: {
     userId,
+    platform: "spotify",
     entry: rawEntry,
   },
 } as Job<HistoryIngestionJobData>;
 
 const pendingEntry = {
   ...rawEntry,
-  artists: [{ platformId: "pending:Stevie Wonder", name: "Stevie Wonder" }],
+  artists: [
+    {
+      platformId: "pending:Stevie Wonder",
+      name: "Stevie Wonder",
+    },
+  ],
 };
 
 const pendingJob = {
   ...job,
-  data: { userId, entry: pendingEntry },
+  data: {
+    userId,
+    platform: "spotify",
+    entry: pendingEntry,
+  },
 } as Job<HistoryIngestionJobData>;
 
 describe("history-ingestion worker processor", () => {
@@ -68,13 +74,15 @@ describe("history-ingestion worker processor", () => {
     mockRespectRateLimit.mockReset();
     mockIngestHistory.mockReset();
     mockGetPlatformAdapter.mockReset();
-    mockRedisGet.mockReset();
-    mockRedisExpire.mockReset();
-    mockRedisDel.mockReset();
 
     mockCheckRateLimited.mockResolvedValue(false);
-    mockRedisDel.mockResolvedValue(undefined);
-    mockIngestHistory.mockResolvedValue({ status: "completed" });
+
+    mockRespectRateLimit.mockResolvedValue(undefined);
+
+    mockIngestHistory.mockResolvedValue({
+      status: "completed",
+    });
+
     mockGetPlatformAdapter.mockReturnValue({
       platformName: "spotify",
       ingestHistory: mockIngestHistory,
@@ -88,30 +96,48 @@ describe("history-ingestion worker processor", () => {
 
     expect(result).toBeUndefined();
     expect(mockIngestHistory).not.toHaveBeenCalled();
+    expect(mockGetPlatformAdapter).not.toHaveBeenCalled();
   });
 
-  test("gets the correct platform adapter for the entry platform", async () => {
+  test("gets the correct platform adapter for the job platform", async () => {
     await processHistoryIngestion(job);
 
     expect(mockGetPlatformAdapter).toHaveBeenCalledWith("spotify");
   });
 
-  test("delegates to adapter.ingestHistory with correct arguments", async () => {
+  test("delegates to adapter.ingestHistory with transformed entry", async () => {
     await processHistoryIngestion(job);
 
-    expect(mockIngestHistory).toHaveBeenCalledWith(userId, rawEntry);
+    expect(mockIngestHistory).toHaveBeenCalledTimes(1);
+
+    expect(mockIngestHistory).toHaveBeenCalledWith(
+      userId,
+      expect.objectContaining({
+        userId,
+        platformTrackId: "track-123",
+        platformName: "spotify",
+        trackName: "Superstitious",
+        metadata: {},
+        artists: [
+          {
+            platformId: "artist-456",
+            name: "Stevie Wonder",
+          },
+        ],
+      }),
+    );
   });
 
   test("returns completed status on success", async () => {
     const result = await processHistoryIngestion(job);
 
-    expect(result).toEqual({ status: "completed" });
+    expect(result).toEqual({
+      status: "completed",
+    });
   });
 
   test("catches 429 errors and delegates to rate limit handler", async () => {
-    const rateLimitErr = Object.assign(new Error("Rate Limited"), {
-      statusCode: 429,
-    });
+    const rateLimitErr = new SpotifyRateLimitError(30);
     mockIngestHistory.mockRejectedValue(rateLimitErr);
 
     const result = await processHistoryIngestion(job);
@@ -126,8 +152,9 @@ describe("history-ingestion worker processor", () => {
     await expect(processHistoryIngestion(job)).rejects.toThrow(
       "Database failure",
     );
-  });
 
+    expect(mockRespectRateLimit).not.toHaveBeenCalled();
+  });
   test("throws when platform adapter is not found", async () => {
     mockGetPlatformAdapter.mockImplementation(() => {
       throw new Error("Unsupported platform: unknown");
@@ -135,18 +162,40 @@ describe("history-ingestion worker processor", () => {
 
     const unknownJob = {
       ...job,
-      data: { userId, entry: { ...rawEntry, platformName: "unknown" } },
-    } as Job<HistoryIngestionJobData>;
+      data: {
+        userId,
+        platform: "unknown",
+        entry: rawEntry,
+      },
+    } as unknown as Job<HistoryIngestionJobData>;
 
     await expect(processHistoryIngestion(unknownJob)).rejects.toThrow(
       "Unsupported platform: unknown",
     );
+
+    expect(mockIngestHistory).not.toHaveBeenCalled();
   });
 
   test("works correctly with pending artist IDs", async () => {
     await processHistoryIngestion(pendingJob);
 
-    expect(mockIngestHistory).toHaveBeenCalledWith(userId, pendingEntry);
     expect(mockIngestHistory).toHaveBeenCalledTimes(1);
+
+    expect(mockIngestHistory).toHaveBeenCalledWith(
+      userId,
+      expect.objectContaining({
+        userId,
+        platformTrackId: "track-123",
+        platformName: "spotify",
+        trackName: "Superstitious",
+        metadata: {},
+        artists: [
+          {
+            platformId: "pending:Stevie Wonder",
+            name: "Stevie Wonder",
+          },
+        ],
+      }),
+    );
   });
 });

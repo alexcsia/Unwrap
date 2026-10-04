@@ -1,29 +1,43 @@
-import { checkRateLimited, respectRateLimit } from "./rateLimit";
-import { describe, expect, test, beforeEach, mock } from "bun:test";
-import { redisCache } from "@/lib/queue";
+import workerUtils from ".";
+import {
+  describe,
+  expect,
+  test,
+  beforeEach,
+  afterEach,
+  mock,
+  spyOn,
+} from "bun:test";
+import { redisCache } from "@/lib/redis";
+
+let setSpy: ReturnType<typeof spyOn>;
+let getSpy: ReturnType<typeof spyOn>;
+
+beforeEach(() => {
+  setSpy = spyOn(redisCache, "set");
+  getSpy = spyOn(redisCache, "get");
+});
+
+afterEach(() => {
+  setSpy.mockRestore();
+  getSpy.mockRestore();
+});
 
 describe("Rate limit helpers", () => {
-  beforeEach(() => {
-    mock.restore();
-  });
-
   describe("respectRateLimit", () => {
     test("should use retryAfter when provided", async () => {
-      const setMock = mock(() => Promise.resolve("OK"));
-      redisCache.set = setMock as typeof redisCache.set;
+      setSpy.mockResolvedValue("OK");
 
       const moveToDelayed = mock(() => Promise.resolve());
       const job = { id: "123", moveToDelayed } as any;
 
       const error = {
-        meta: {
-          retryAfter: 10,
-        },
+        retryAfter: 10,
       };
 
-      await respectRateLimit(error, job);
+      await workerUtils.rateLimits.respectRateLimit(error, job);
 
-      expect(setMock).toHaveBeenCalledWith(
+      expect(setSpy).toHaveBeenCalledWith(
         "spotify:rate-limited-until",
         expect.any(Number),
         "PX",
@@ -34,15 +48,14 @@ describe("Rate limit helpers", () => {
     });
 
     test("should default to 30 seconds when retryAfter is missing", async () => {
-      const setMock = mock(() => Promise.resolve("OK"));
-      redisCache.set = setMock as typeof redisCache.set;
+      setSpy.mockResolvedValue("OK");
 
       const moveToDelayed = mock(() => Promise.resolve());
       const job = { id: "123", moveToDelayed } as any;
 
-      await respectRateLimit({}, job);
+      await workerUtils.rateLimits.respectRateLimit({}, job);
 
-      expect(setMock).toHaveBeenCalledWith(
+      expect(setSpy).toHaveBeenCalledWith(
         "spotify:rate-limited-until",
         expect.any(Number),
         "PX",
@@ -57,15 +70,14 @@ describe("Rate limit helpers", () => {
     test("should delay job and return true when rate limit is active", async () => {
       const waitUntil = Date.now() + 10_000;
 
-      const getMock = mock(() => Promise.resolve(String(waitUntil)));
-      redisCache.get = getMock as typeof redisCache.get;
+      getSpy.mockResolvedValue(String(waitUntil));
 
       const moveToDelayed = mock(() => Promise.resolve());
       const job = { id: "123", moveToDelayed } as any;
 
-      const result = await checkRateLimited(job);
+      const result = await workerUtils.rateLimits.checkRateLimited(job);
 
-      expect(getMock).toHaveBeenCalledWith("spotify:rate-limited-until");
+      expect(getSpy).toHaveBeenCalledWith("spotify:rate-limited-until");
 
       expect(moveToDelayed).toHaveBeenCalledWith(waitUntil);
       expect(result).toBe(true);
@@ -74,26 +86,24 @@ describe("Rate limit helpers", () => {
     test("should return false when rate limit has expired", async () => {
       const waitUntil = Date.now() - 10_000;
 
-      const getMock = mock(() => Promise.resolve(String(waitUntil)));
-      redisCache.get = getMock as typeof redisCache.get;
+      getSpy.mockResolvedValue(String(waitUntil));
 
       const moveToDelayed = mock(() => Promise.resolve());
       const job = { id: "123", moveToDelayed } as any;
 
-      const result = await checkRateLimited(job);
+      const result = await workerUtils.rateLimits.checkRateLimited(job);
 
       expect(moveToDelayed).not.toHaveBeenCalled();
       expect(result).toBe(false);
     });
 
     test("should return false when no rate limit exists", async () => {
-      const getMock = mock(() => Promise.resolve(null));
-      redisCache.get = getMock as typeof redisCache.get;
+      getSpy.mockResolvedValue(null);
 
       const moveToDelayed = mock(() => Promise.resolve());
       const job = { id: "123", moveToDelayed } as any;
 
-      const result = await checkRateLimited(job);
+      const result = await workerUtils.rateLimits.checkRateLimited(job);
 
       expect(moveToDelayed).not.toHaveBeenCalled();
       expect(result).toBe(false);
