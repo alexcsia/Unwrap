@@ -1,82 +1,76 @@
-import prisma from "@/utils/prisma.util";
+import * as topArtistsModel from "@/models/artist.model";
+import type { TopArtistRow } from "@/models/artist.model";
+import analyticsHelpers from "./shared";
 
-export const getTopArtistsService = async (userId: string, filters: any) => {
-  const { year, month, date, from, to, limit = 10, offset = 0 } = filters;
+export type TopArtistsFilters = analyticsHelpers.DateFilters & {
+  limit?: number;
+  offset?: number;
+};
 
-  let startDate: Date;
-  let endDate: Date;
+export type TopArtistsRepo = {
+  findTopArtists: typeof topArtistsModel.findTopArtists;
+};
 
-  if (date) {
-    startDate = new Date(date);
-    endDate = new Date(date);
-    endDate.setDate(endDate.getDate() + 1);
-  } else if (from && to) {
-    startDate = new Date(from);
-    endDate = new Date(to);
-    endDate.setDate(endDate.getDate() + 1);
-  } else if (year) {
-    startDate = new Date(year, month ? month - 1 : 0, 1);
-    endDate = month ? new Date(year, month, 1) : new Date(year + 1, 0, 1);
-  } else {
-    startDate = new Date(0);
-    endDate = new Date();
-  }
+const DEFAULT_LIMIT = 10;
+const DEFAULT_OFFSET = 0;
 
-  const raw = await prisma.$queryRaw<
-    {
-      artistId: string;
-      artistName: string;
-      imageUrl: string | null;
-      playCount: bigint;
-      totalDurationMs: bigint;
-      totalCount: bigint;
-    }[]
-  >`
-SELECT 
-    a.id AS "artistId",
-    a.name AS "artistName",
-    a."imageUrl",
-    COUNT(lh.id) AS "playCount",
-    SUM(t."durationMs") AS "totalDurationMs",
-    COUNT(*) OVER() AS "totalCount"
-  FROM "ListeningHistory" lh
-  JOIN "Track" t ON t.id = lh."trackId"
-  JOIN "_TrackArtists" ta ON ta."B" = t.id
-  JOIN "Artist" a ON a.id = ta."A"
-  WHERE lh."userId" = ${userId}
-    AND lh."playedAt" >= ${startDate}
-    AND lh."playedAt" < ${endDate}
-    AND a.id NOT IN (
-      SELECT "targetId"
-      FROM "Exclusion"
-      WHERE "userId" = ${userId}
-        AND "type" = 'artist'
-    )
-  GROUP BY a.id, a.name, a."imageUrl"
-  ORDER BY "playCount" DESC
-  LIMIT ${limit}
-  OFFSET ${offset}
-  `;
+const buildPagination = (limit: number, offset: number, total: number) => ({
+  limit,
+  offset,
+  total,
+  hasMore: offset + limit < total,
+  nextOffset: offset + limit < total ? offset + limit : null,
+  previousOffset: offset - limit >= 0 ? offset - limit : null,
+});
 
-  const total = Number(raw[0]?.totalCount ?? 0);
+const toTopArtist = (row: TopArtistRow, rank: number) => ({
+  rank,
+  artistId: row.artistId,
+  artistName: row.artistName,
+  playCount: Number(row.playCount),
+  durationMs: Number(row.totalDurationMs ?? 0),
+});
 
-  const topArtists = raw.map((artist, index) => ({
-    rank: offset + index + 1,
-    artistId: artist.artistId,
-    artistName: artist.artistName,
-    playCount: Number(artist.playCount),
-    durationMs: Number(artist.totalDurationMs ?? 0),
-  }));
+/**
+ * Service: getTopArtistsService
+ *
+ * Ranks a user's most-played artists within a timeframe, excluding
+ * artist exclusions.
+ *
+ * Flow:
+ * - Resolves filter dates into a half-open interval
+ * - Runs a raw aggregate query ranking artists by play count
+ * - Maps rows to ranked entries and attaches pagination metadata
+ *
+ * Returns:
+ * - pagination: limit / offset / total / hasMore / next / previous
+ * - topArtists: ranked entries with play count and total duration
+ *
+ * Errors:
+ * - 500 (inherited) if the aggregate query fails
+ */
+export const createGetTopArtistsService =
+  (repo: TopArtistsRepo = topArtistsModel) =>
+  async (userId: string, filters: TopArtistsFilters) => {
+    const { limit = DEFAULT_LIMIT, offset = DEFAULT_OFFSET } = filters;
+    const { startDate, endDate } = analyticsHelpers.resolveDateRange(filters);
 
-  return {
-    pagination: {
+    const rows = await repo.findTopArtists({
+      userId,
+      start: startDate,
+      end: endDate,
       limit,
       offset,
-      total,
-      hasMore: offset + limit < total,
-      nextOffset: offset + limit < total ? offset + limit : null,
-      previousOffset: offset - limit >= 0 ? offset - limit : null,
-    },
-    topArtists,
+    });
+
+    const total = Number(rows[0]?.totalCount ?? 0);
+
+    return {
+      pagination: buildPagination(limit, offset, total),
+      topArtists: rows.map((row, index) =>
+        toTopArtist(row, offset + index + 1),
+      ),
+    };
   };
-};
+
+export const getTopArtistsService = createGetTopArtistsService();
