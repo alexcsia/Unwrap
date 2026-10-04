@@ -1,17 +1,16 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, test, expect, mock } from "bun:test";
 import { getTopTracksService } from "../getTopTracks.service";
 import prisma from "@/utils/prisma.util";
 
-mock.module("@/utils/prisma.util", () => ({
-  default: {
-    exclusion: { findMany: mock() },
-    track: {
-      groupBy: mock(),
-      findMany: mock(),
-    },
-    $queryRaw: mock(),
-  },
-}));
+const mockedExclusionFindMany = mock();
+const mockedTrackGroupBy = mock();
+const mockedTrackFindMany = mock();
+const mockedQueryRaw = mock();
+
+const originalExclusionFindMany = prisma.exclusion.findMany;
+const originalTrackGroupBy = prisma.track.groupBy;
+const originalTrackFindMany = prisma.track.findMany;
+const originalQueryRaw = prisma.$queryRaw;
 
 describe("Top Tracks Service", () => {
   const makeTrackRow = (overrides: Record<string, any> = {}) => ({
@@ -28,19 +27,35 @@ describe("Top Tracks Service", () => {
   const userId = "user-123";
 
   beforeEach(() => {
-    (prisma.exclusion.findMany as any).mockClear();
-    (prisma.track.groupBy as any).mockClear();
-    (prisma.track.findMany as any).mockClear();
-    (prisma.$queryRaw as any).mockClear();
+    mockedExclusionFindMany.mockReset();
+    mockedTrackGroupBy.mockReset();
+    mockedTrackFindMany.mockReset();
+    mockedQueryRaw.mockReset();
+
+    prisma.exclusion.findMany =
+      mockedExclusionFindMany as typeof prisma.exclusion.findMany;
+
+    prisma.track.groupBy = mockedTrackGroupBy as typeof prisma.track.groupBy;
+
+    prisma.track.findMany = mockedTrackFindMany as typeof prisma.track.findMany;
+
+    prisma.$queryRaw = mockedQueryRaw as typeof prisma.$queryRaw;
+  });
+
+  afterEach(() => {
+    prisma.exclusion.findMany = originalExclusionFindMany;
+    prisma.track.groupBy = originalTrackGroupBy;
+    prisma.track.findMany = originalTrackFindMany;
+    prisma.$queryRaw = originalQueryRaw;
   });
 
   test("should return formatted top tracks while filtering exclusions", async () => {
-    (prisma.exclusion.findMany as any).mockResolvedValue([
+    mockedExclusionFindMany.mockResolvedValue([
       { type: "track", targetId: "blocked-track-id" },
       { type: "artist", targetId: "blocked-artist-id" },
     ]);
 
-    (prisma.$queryRaw as any).mockResolvedValueOnce([
+    mockedQueryRaw.mockResolvedValueOnce([
       {
         trackId: "track-1",
         trackName: "Cruel Summer",
@@ -52,7 +67,10 @@ describe("Top Tracks Service", () => {
       },
     ]);
 
-    const result = await getTopTracksService(userId, { limit: 10, offset: 0 });
+    const result = await getTopTracksService(userId, {
+      limit: 10,
+      offset: 0,
+    });
 
     expect(result.topTracks).toHaveLength(1);
     expect(result.topTracks[0]).toEqual({
@@ -67,8 +85,8 @@ describe("Top Tracks Service", () => {
   });
 
   test("should handle tracks with multiple artists correctly", async () => {
-    (prisma.exclusion.findMany as any).mockResolvedValue([]);
-    (prisma.$queryRaw as any).mockResolvedValueOnce([
+    mockedExclusionFindMany.mockResolvedValue([]);
+    mockedQueryRaw.mockResolvedValueOnce([
       {
         trackId: "collab-1",
         trackName: "Creepin'",
@@ -88,8 +106,8 @@ describe("Top Tracks Service", () => {
   });
 
   test("should return empty results if no history exists", async () => {
-    (prisma.exclusion.findMany as any).mockResolvedValue([]);
-    (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+    mockedExclusionFindMany.mockResolvedValue([]);
+    mockedQueryRaw.mockResolvedValueOnce([]);
 
     const result = await getTopTracksService(userId, { limit: 10 });
 
@@ -99,62 +117,65 @@ describe("Top Tracks Service", () => {
 
   describe("date filtering", () => {
     test("uses single date range when date filter provided", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopTracksService(userId, { date: "2024-06-15" });
 
-      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(mockedQueryRaw).toHaveBeenCalledTimes(1);
     });
 
     test("uses from/to range when both provided", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopTracksService(userId, {
         from: "2024-01-01",
         to: "2024-06-30",
       });
 
-      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(mockedQueryRaw).toHaveBeenCalledTimes(1);
     });
 
     test("uses full year range when only year provided", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopTracksService(userId, { year: 2024 });
 
-      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(mockedQueryRaw).toHaveBeenCalledTimes(1);
     });
 
     test("uses year+month range when both provided", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopTracksService(userId, { year: 2024, month: 6 });
 
-      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(mockedQueryRaw).toHaveBeenCalledTimes(1);
     });
 
     test("uses fallback range when no date filters provided", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopTracksService(userId, {});
 
-      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(mockedQueryRaw).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("exclusion filtering", () => {
     test("excluded track does not appear in results", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([
+      mockedExclusionFindMany.mockResolvedValue([
         { type: "track", targetId: "blocked-track-id" },
       ]);
 
-      (prisma.$queryRaw as any).mockResolvedValueOnce([
-        makeTrackRow({ trackId: "allowed-track", totalCount: BigInt(1) }),
+      mockedQueryRaw.mockResolvedValueOnce([
+        makeTrackRow({
+          trackId: "allowed-track",
+          totalCount: BigInt(1),
+        }),
       ]);
 
       const result = await getTopTracksService(userId, {
@@ -169,10 +190,16 @@ describe("Top Tracks Service", () => {
     });
 
     test("returns all tracks when no exclusions exist", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([
-        makeTrackRow({ trackId: "track-1", totalCount: BigInt(2) }),
-        makeTrackRow({ trackId: "track-2", totalCount: BigInt(2) }),
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([
+        makeTrackRow({
+          trackId: "track-1",
+          totalCount: BigInt(2),
+        }),
+        makeTrackRow({
+          trackId: "track-2",
+          totalCount: BigInt(2),
+        }),
       ]);
 
       const result = await getTopTracksService(userId, {
@@ -184,12 +211,12 @@ describe("Top Tracks Service", () => {
     });
 
     test("fetches exclusions for the correct userId", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopTracksService(userId, {});
 
-      expect(prisma.exclusion.findMany).toHaveBeenCalledWith({
+      expect(mockedExclusionFindMany).toHaveBeenCalledWith({
         where: { userId },
         select: { type: true, targetId: true },
       });
@@ -198,8 +225,8 @@ describe("Top Tracks Service", () => {
 
   describe("rank calculation", () => {
     test("rank starts at 1 on first page", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([
         makeTrackRow({ totalCount: BigInt(1) }),
       ]);
 
@@ -212,8 +239,8 @@ describe("Top Tracks Service", () => {
     });
 
     test("rank accounts for offset on subsequent pages", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([
         makeTrackRow({ totalCount: BigInt(20) }),
       ]);
 
@@ -228,8 +255,8 @@ describe("Top Tracks Service", () => {
 
   describe("pagination", () => {
     test("hasMore is true when totalCount exceeds limit", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce(
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce(
         new Array(10).fill(makeTrackRow({ totalCount: BigInt(25) })),
       );
 
@@ -244,11 +271,17 @@ describe("Top Tracks Service", () => {
     });
 
     test("hasMore is false when all records fit in one page", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce([
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce([
         makeTrackRow({ totalCount: BigInt(3) }),
-        makeTrackRow({ trackId: "track-2", totalCount: BigInt(3) }),
-        makeTrackRow({ trackId: "track-3", totalCount: BigInt(3) }),
+        makeTrackRow({
+          trackId: "track-2",
+          totalCount: BigInt(3),
+        }),
+        makeTrackRow({
+          trackId: "track-3",
+          totalCount: BigInt(3),
+        }),
       ]);
 
       const result = await getTopTracksService(userId, {
@@ -261,8 +294,8 @@ describe("Top Tracks Service", () => {
     });
 
     test("previousOffset is correct on second page", async () => {
-      (prisma.exclusion.findMany as any).mockResolvedValue([]);
-      (prisma.$queryRaw as any).mockResolvedValueOnce(
+      mockedExclusionFindMany.mockResolvedValue([]);
+      mockedQueryRaw.mockResolvedValueOnce(
         new Array(10).fill(makeTrackRow({ totalCount: BigInt(30) })),
       );
 

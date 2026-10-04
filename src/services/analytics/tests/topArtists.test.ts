@@ -1,12 +1,10 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, test, expect, mock } from "bun:test";
 import { getTopArtistsService } from "../getTopArtists.service";
 import prisma from "@/utils/prisma.util";
 
-mock.module("@/utils/prisma.util", () => ({
-  default: {
-    $queryRaw: mock(),
-  },
-}));
+const mockedQueryRaw = mock();
+
+const originalQueryRaw = prisma.$queryRaw;
 
 describe("Top Artists Service", () => {
   const makeArtistRow = (overrides: Record<string, any> = {}) => ({
@@ -22,7 +20,13 @@ describe("Top Artists Service", () => {
   const userId = "user-123";
 
   beforeEach(() => {
-    (prisma.$queryRaw as any).mockClear();
+    mockedQueryRaw.mockReset();
+
+    prisma.$queryRaw = mockedQueryRaw as typeof prisma.$queryRaw;
+  });
+
+  afterEach(() => {
+    prisma.$queryRaw = originalQueryRaw;
   });
 
   test("should return formatted top artists and correct pagination", async () => {
@@ -49,7 +53,7 @@ describe("Top Artists Service", () => {
       },
     ];
 
-    (prisma.$queryRaw as any).mockResolvedValueOnce(mockRawData);
+    mockedQueryRaw.mockResolvedValueOnce(mockRawData);
 
     const filters = { limit: 10, offset: 0, year: 2024 };
     const result = await getTopArtistsService(userId, filters);
@@ -81,7 +85,7 @@ describe("Top Artists Service", () => {
   });
 
   test("should handle empty results gracefully", async () => {
-    (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+    mockedQueryRaw.mockResolvedValueOnce([]);
 
     const result = await getTopArtistsService(userId, { limit: 5 });
 
@@ -100,7 +104,7 @@ describe("Top Artists Service", () => {
       totalCount: BigInt(20),
     };
 
-    (prisma.$queryRaw as any).mockResolvedValueOnce(new Array(5).fill(mockRow));
+    mockedQueryRaw.mockResolvedValueOnce(new Array(5).fill(mockRow));
 
     const result = await getTopArtistsService(userId, {
       limit: 5,
@@ -112,7 +116,7 @@ describe("Top Artists Service", () => {
   });
 
   test("should calculate previousOffset and nextOffset correctly on subsequent pages", async () => {
-    (prisma.$queryRaw as any).mockResolvedValueOnce(
+    mockedQueryRaw.mockResolvedValueOnce(
       new Array(5).fill(makeArtistRow({ totalCount: BigInt(30) })),
     );
 
@@ -126,9 +130,7 @@ describe("Top Artists Service", () => {
   });
 
   test("should handle null imageUrl without error", async () => {
-    (prisma.$queryRaw as any).mockResolvedValueOnce([
-      makeArtistRow({ imageUrl: null }),
-    ]);
+    mockedQueryRaw.mockResolvedValueOnce([makeArtistRow({ imageUrl: null })]);
 
     const result = await getTopArtistsService(userId, {});
 
@@ -136,7 +138,7 @@ describe("Top Artists Service", () => {
   });
 
   test("should convert BigInt fields to numbers", async () => {
-    (prisma.$queryRaw as any).mockResolvedValueOnce([makeArtistRow()]);
+    mockedQueryRaw.mockResolvedValueOnce([makeArtistRow()]);
 
     const result = await getTopArtistsService(userId, {});
 
@@ -145,7 +147,7 @@ describe("Top Artists Service", () => {
   });
 
   test("should calculate rank correctly based on offset", async () => {
-    (prisma.$queryRaw as any).mockResolvedValueOnce([
+    mockedQueryRaw.mockResolvedValueOnce([
       makeArtistRow({ totalCount: BigInt(20) }),
     ]);
 
@@ -159,11 +161,11 @@ describe("Top Artists Service", () => {
 
   describe("date filtering", () => {
     test("uses full year range when only year provided", async () => {
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopArtistsService(userId, { year: 2023 });
 
-      const params = (prisma.$queryRaw as any).mock.calls[0].slice(1);
+      const params = mockedQueryRaw.mock.calls[0]!.slice(1);
       const startDate = params[1];
       const endDate = params[2];
 
@@ -175,11 +177,11 @@ describe("Top Artists Service", () => {
     });
 
     test("uses month range when year and month provided", async () => {
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopArtistsService(userId, { year: 2024, month: 6 });
 
-      const params = (prisma.$queryRaw as any).mock.calls[0].slice(1);
+      const params = mockedQueryRaw.mock.calls[0]!.slice(1);
       const startDate = params[1];
       const endDate = params[2];
 
@@ -188,11 +190,11 @@ describe("Top Artists Service", () => {
     });
 
     test("uses single day range when date provided", async () => {
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopArtistsService(userId, { date: "2024-06-15" });
 
-      const params = (prisma.$queryRaw as any).mock.calls[0].slice(1);
+      const params = mockedQueryRaw.mock.calls[0]!.slice(1);
       const startDate = params[1];
       const endDate = params[2];
 
@@ -201,14 +203,14 @@ describe("Top Artists Service", () => {
     });
 
     test("uses from/to range when both provided", async () => {
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopArtistsService(userId, {
         from: "2024-01-01",
         to: "2024-06-30",
       });
 
-      const params = (prisma.$queryRaw as any).mock.calls[0].slice(1);
+      const params = mockedQueryRaw.mock.calls[0]!.slice(1);
       const startDate = params[1];
       const endDate = params[2];
 
@@ -218,11 +220,11 @@ describe("Top Artists Service", () => {
     });
 
     test("uses fallback range when no date filter provided", async () => {
-      (prisma.$queryRaw as any).mockResolvedValueOnce([]);
+      mockedQueryRaw.mockResolvedValueOnce([]);
 
       await getTopArtistsService(userId, {});
 
-      const params = (prisma.$queryRaw as any).mock.calls[0].slice(1);
+      const params = mockedQueryRaw.mock.calls[0]!.slice(1);
       const startDate = params[1];
 
       expect(startDate.getTime()).toBe(new Date(0).getTime());
@@ -231,7 +233,7 @@ describe("Top Artists Service", () => {
 
   describe("exclusion filtering", () => {
     test("excluded artist does not appear in results", async () => {
-      (prisma.$queryRaw as any).mockResolvedValueOnce([
+      mockedQueryRaw.mockResolvedValueOnce([
         makeArtistRow({ artistId: "allowed-artist", totalCount: BigInt(1) }),
       ]);
 
@@ -244,7 +246,7 @@ describe("Top Artists Service", () => {
     });
 
     test("returns all artists when no exclusions exist", async () => {
-      (prisma.$queryRaw as any).mockResolvedValueOnce([
+      mockedQueryRaw.mockResolvedValueOnce([
         makeArtistRow({ artistId: "artist-1", totalCount: BigInt(2) }),
         makeArtistRow({ artistId: "artist-2", totalCount: BigInt(2) }),
       ]);

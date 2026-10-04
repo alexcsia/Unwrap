@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { ApiError } from "@/errors/ApiError";
 import {
   addExclusionService,
@@ -14,16 +14,11 @@ mock.module("@/models/exclusion.model", () => ({
   getExclusionsByUserId: mock(),
 }));
 
-mock.module("@/utils/prisma.util", () => ({
-  default: {
-    artist: {
-      findUnique: mock(),
-    },
-    track: {
-      findUnique: mock(),
-    },
-  },
-}));
+const mockedArtistFindUnique = mock();
+const mockedTrackFindUnique = mock();
+
+const originalArtistFindUnique = prisma.artist.findUnique;
+const originalTrackFindUnique = prisma.track.findUnique;
 
 describe("Exclusion Service", () => {
   const userId = "user-123";
@@ -32,8 +27,23 @@ describe("Exclusion Service", () => {
     (exclusionModel.addExclusion as any).mockClear();
     (exclusionModel.deleteExclusion as any).mockClear();
     (exclusionModel.getExclusionsByUserId as any).mockClear();
-    (prisma.artist.findUnique as any).mockClear();
-    (prisma.track.findUnique as any).mockClear();
+
+    mockedArtistFindUnique.mockReset();
+    mockedTrackFindUnique.mockReset();
+
+    mockedArtistFindUnique.mockResolvedValue(null);
+    mockedTrackFindUnique.mockResolvedValue(null);
+
+    prisma.artist.findUnique =
+      mockedArtistFindUnique as typeof prisma.artist.findUnique;
+
+    prisma.track.findUnique =
+      mockedTrackFindUnique as typeof prisma.track.findUnique;
+  });
+
+  afterEach(() => {
+    prisma.artist.findUnique = originalArtistFindUnique;
+    prisma.track.findUnique = originalTrackFindUnique;
   });
 
   describe("addExclusionService", () => {
@@ -50,7 +60,7 @@ describe("Exclusion Service", () => {
         excludedAt: new Date(),
       };
 
-      (prisma.artist.findUnique as any).mockResolvedValue(mockArtist);
+      mockedArtistFindUnique.mockResolvedValue(mockArtist);
       (exclusionModel.addExclusion as any).mockResolvedValue(mockExclusion);
 
       const result = await addExclusionService(userId, {
@@ -97,7 +107,7 @@ describe("Exclusion Service", () => {
         excludedAt: new Date(),
       };
 
-      (prisma.track.findUnique as any).mockResolvedValue(mockTrack);
+      mockedTrackFindUnique.mockResolvedValue(mockTrack);
       (exclusionModel.addExclusion as any).mockResolvedValue(mockExclusion);
 
       await addExclusionService(userId, { type: "track", targetId });
@@ -113,7 +123,7 @@ describe("Exclusion Service", () => {
     });
 
     test("should throw 404 if artist is not found in database", async () => {
-      (prisma.artist.findUnique as any).mockResolvedValue(null);
+      mockedArtistFindUnique.mockResolvedValue(null);
 
       await expect(
         addExclusionService(userId, { type: "artist", targetId: "missing" }),
@@ -165,6 +175,7 @@ describe("Exclusion Service", () => {
           excludedAt: now,
         },
       ];
+
       (exclusionModel.getExclusionsByUserId as any).mockResolvedValue(
         mockExclusions,
       );
@@ -175,6 +186,7 @@ describe("Exclusion Service", () => {
         artistId: "a1",
         artistName: "Artist Name",
       });
+
       expect(result.exclusions.tracks[0]).toMatchObject({
         trackId: "t1",
         trackName: "Track Name",

@@ -1,16 +1,16 @@
-import { describe, expect, test, beforeEach, mock } from "bun:test";
-import { toUploadData } from "../helpers";
-import { redisCache } from "@/lib/queue";
-import type { ConnectedPlatforms } from "@prisma/client";
-import type { UploadData } from "../../types";
+import { afterEach, beforeEach, describe, expect, test, mock } from "bun:test";
+
+import { toUploadData, toSpotifyDTOs } from "../helpers";
+import { redisCache } from "@/lib/redis";
+import type { UploadData, UploadArtist } from "../../types";
 import { CACHE_TTL_SEC } from "@/workers/shared/rateLimit";
-import { toSpotifyDTOs } from "../helpers";
-import type { UploadArtist } from "../../types";
 import type {
   SpotifyArtistDTO,
   SpotifyListeningHistoryDTO,
   SpotifyTrackDTO,
 } from "@/platforms/spotify/types";
+import prisma from "@/utils/prisma.util";
+import type { SpotifyConnection } from "@/models/connectedPlatforms/types";
 
 const USER_ID = "user-123";
 
@@ -22,18 +22,20 @@ const baseRawEntry = {
   durationMs: 180000,
   source: "spotify_upload",
   playedAt: "2026-01-01T12:00:00Z",
-  artists: [{ name: "Test Artist", platformId: "spotify:artist:123" }],
+  artists: [
+    {
+      name: "Test Artist",
+      platformId: "spotify:artist:123",
+    },
+  ],
 };
 
 const redisSetMock = mock();
-
 const getSpotifyArtistIdsMock = mock();
 
 mock.module("@/platforms/spotify/utils", () => ({
   getSpotifyArtistIds: getSpotifyArtistIdsMock,
 }));
-
-import { fetchAndCacheSpotifyArtists } from "../helpers";
 
 const mockFindOrCreateTrack = mock();
 const mockFindOrCreateArtist = mock();
@@ -53,13 +55,13 @@ mock.module("@/models/listeningHistory.model", () => ({
   saveListeningHistory: mockSaveListeningHistory,
 }));
 
-mock.module("@/utils/prisma.util", () => ({
-  default: {
-    $transaction: mock(async (fn: Function) => fn()),
-  },
-}));
+const mockTransaction = mock(async (fn: Function) => fn());
+const originalTransaction = prisma.$transaction;
 
-const { saveHistoryRecords } = await import("../helpers");
+const originalRedisSet = redisCache.set;
+
+const { saveHistoryRecords, fetchAndCacheSpotifyArtists } =
+  await import("../helpers");
 
 const mockTrack: SpotifyTrackDTO = {
   platformTrackId: "sp-track-1",
@@ -98,13 +100,27 @@ const mockEntry: UploadData = {
   metadata: {},
   playedAt: new Date("2024-06-01T12:00:00Z"),
   uploadedAt: new Date(),
-  artists: [{ platformId: "sp-artist-1", name: "Taylor Swift" }],
+  artists: [
+    {
+      platformId: "sp-artist-1",
+      name: "Taylor Swift",
+    },
+  ],
 };
 
 const userId = "user-123";
 
-const mockSavedTrack = { id: "internal-track-id", trackName: "Cruel Summer" };
-const mockSavedArtists = [{ id: "internal-artist-id", name: "Taylor Swift" }];
+const mockSavedTrack = {
+  id: "internal-track-id",
+  trackName: "Cruel Summer",
+};
+
+const mockSavedArtists = [
+  {
+    id: "internal-artist-id",
+    name: "Taylor Swift",
+  },
+];
 
 describe("toUploadData", () => {
   test("transforms valid raw entry with all fields", () => {
@@ -129,13 +145,20 @@ describe("toUploadData", () => {
       metadata: { key: "value" },
       playedAt: new Date("2026-01-01T12:00:00Z"),
       uploadedAt: new Date("2026-01-02T12:00:00Z"),
-      artists: [{ platformId: "spotify:artist:123", name: "Test Artist" }],
+      artists: [
+        {
+          platformId: "spotify:artist:123",
+          name: "Test Artist",
+        },
+      ],
     });
   });
 
   test("defaults uploadedAt to current date when missing", () => {
     const before = Date.now();
+
     const result = toUploadData(USER_ID, baseRawEntry as any);
+
     const after = Date.now();
 
     expect(result.uploadedAt).toBeInstanceOf(Date);
@@ -144,7 +167,12 @@ describe("toUploadData", () => {
   });
 
   test("defaults metadata to empty object and isrc to undefined when omitted", () => {
-    const raw = { ...baseRawEntry, isrc: "", metadata: undefined };
+    const raw = {
+      ...baseRawEntry,
+      isrc: "",
+      metadata: undefined,
+    };
+
     const result = toUploadData(USER_ID, raw as any);
 
     expect(result.isrc).toBeUndefined();
@@ -155,18 +183,36 @@ describe("toUploadData", () => {
     const raw = {
       ...baseRawEntry,
       artists: [
-        { name: "Artist A", platformId: undefined },
-        { name: "Artist B", platformId: "undefined" },
-        { name: "Artist C", platformId: "spotify:artist:456" },
+        {
+          name: "Artist A",
+          platformId: undefined,
+        },
+        {
+          name: "Artist B",
+          platformId: "undefined",
+        },
+        {
+          name: "Artist C",
+          platformId: "spotify:artist:456",
+        },
       ],
     };
 
     const result = toUploadData(USER_ID, raw as any);
 
     expect(result.artists).toEqual([
-      { name: "Artist A", platformId: "pending:Artist A" },
-      { name: "Artist B", platformId: "pending:Artist B" },
-      { name: "Artist C", platformId: "spotify:artist:456" },
+      {
+        name: "Artist A",
+        platformId: "pending:Artist A",
+      },
+      {
+        name: "Artist B",
+        platformId: "pending:Artist B",
+      },
+      {
+        name: "Artist C",
+        platformId: "spotify:artist:456",
+      },
     ]);
   });
 
@@ -174,8 +220,14 @@ describe("toUploadData", () => {
     const raw = {
       ...baseRawEntry,
       artists: [
-        { name: "Valid Artist", platformId: "123" },
-        { name: "", platformId: "456" },
+        {
+          name: "Valid Artist",
+          platformId: "123",
+        },
+        {
+          name: "",
+          platformId: "456",
+        },
         null,
         undefined,
       ],
@@ -196,10 +248,20 @@ describe("fetchAndCacheSpotifyArtists", () => {
     redisCache.set = redisSetMock as typeof redisCache.set;
   });
 
+  afterEach(() => {
+    redisCache.set = originalRedisSet;
+  });
+
   test("should fetch, cache, and return Spotify artists", async () => {
     const artists = [
-      { platformId: "spotify-123", name: "Lady Gaga" },
-      { platformId: "spotify-456", name: "Bruno Mars" },
+      {
+        platformId: "spotify-123",
+        name: "Lady Gaga",
+      },
+      {
+        platformId: "spotify-456",
+        name: "Bruno Mars",
+      },
     ];
 
     getSpotifyArtistIdsMock.mockResolvedValue(artists);
@@ -209,7 +271,7 @@ describe("fetchAndCacheSpotifyArtists", () => {
       platformTrackId: "track-123",
     } as UploadData;
 
-    const connection = {} as ConnectedPlatforms;
+    const connection = {} as SpotifyConnection;
 
     const result = await fetchAndCacheSpotifyArtists(
       entry,
@@ -235,7 +297,7 @@ describe("fetchAndCacheSpotifyArtists", () => {
       platformTrackId: "track-123",
     } as UploadData;
 
-    const connection = {} as ConnectedPlatforms;
+    const connection = {} as SpotifyConnection;
 
     const result = await fetchAndCacheSpotifyArtists(
       entry,
@@ -332,6 +394,16 @@ describe("saveHistoryRecords", () => {
     mockFindOrCreateArtist.mockReset();
     mockConnectArtistsAndTrack.mockReset();
     mockSaveListeningHistory.mockReset();
+
+    mockTransaction.mockReset();
+    mockTransaction.mockImplementation(async (fn: Function) => fn());
+
+    prisma.$transaction =
+      mockTransaction as unknown as typeof prisma.$transaction;
+  });
+
+  afterEach(() => {
+    prisma.$transaction = originalTransaction;
   });
 
   test("saves a history record successfully", async () => {
