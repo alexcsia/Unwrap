@@ -1,14 +1,14 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test, afterAll } from "bun:test";
+import { Queue } from "bullmq";
+import { createSpotifyEntriesProcessor } from "../spotifyParser";
 
 const mockedAddBulk = mock();
 
-mock.module("@/lib/queue", () => ({
-  historyQueue: {
-    addBulk: mockedAddBulk,
-  },
-}));
+const mockedQueue = {
+  addBulk: mockedAddBulk,
+} as unknown as Queue;
 
-const { processSpotifyEntries } = await import("../spotifyParser");
+const processSpotifyEntries = createSpotifyEntriesProcessor(mockedQueue);
 
 const USER_ID = "test-user-id";
 

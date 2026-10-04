@@ -1,8 +1,9 @@
 import AdmZip from "adm-zip";
 import fs from "fs";
 import path from "path";
-import { processSpotifyEntries } from "@/platforms/spotify/spotifyParser";
+import { createSpotifyEntriesProcessor } from "@/platforms/spotify/spotifyParser";
 import { ApiError } from "@/errors/ApiError";
+import { historyQueue } from "@/lib/queue";
 
 const SPOTIFY_HISTORY_FOLDER = "Spotify Extended Streaming History";
 
@@ -60,9 +61,11 @@ export const spotifyUploadHandler = async (
     let totalEntriesProcessed = 0;
 
     console.log(jsonFiles.length, "JSON files found in Spotify history upload");
+
+    const processor = createSpotifyEntriesProcessor(historyQueue);
     for (const file of jsonFiles) {
       const entries = readListeningEntries(historyDir, file);
-      await processSpotifyEntries(entries, userId);
+      await processor(entries, userId);
       totalEntriesProcessed += entries.length;
     }
     return {
