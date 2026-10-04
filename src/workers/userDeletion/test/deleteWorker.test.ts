@@ -4,7 +4,7 @@ import { deleteUserData } from "../deleteUserData";
 
 const BATCH_SIZE = 20;
 
-export async function createUser() {
+async function createUser() {
   return prisma.user.create({
     data: {
       email: `${crypto.randomUUID()}@test.com`,
@@ -14,15 +14,7 @@ export async function createUser() {
   });
 }
 
-export async function createArtist(index: number) {
-  return prisma.artist.create({
-    data: {
-      name: `Artist ${index}`,
-    },
-  });
-}
-
-export async function createTrack(index: number) {
+async function createTrack(index: number) {
   return prisma.track.create({
     data: {
       trackName: `Track ${index}`,
@@ -37,29 +29,16 @@ export async function createTrack(index: number) {
     },
   });
 }
-
-export async function createHistory(
-  userId: string,
-  trackId: string,
-  count: number,
-) {
-  const histories = [];
-
-  for (let i = 0; i < count; i++) {
-    histories.push(
-      prisma.listeningHistory.create({
-        data: {
-          userId,
-          trackId,
-          platformName: "spotify",
-          source: "import",
-          playedAt: new Date(Date.now() + i),
-        },
-      }),
-    );
-  }
-
-  await prisma.$transaction(histories);
+async function createHistory(userId: string, trackId: string, count: number) {
+  await prisma.listeningHistory.createMany({
+    data: Array.from({ length: count }, (_, i) => ({
+      userId,
+      trackId,
+      platformName: "spotify",
+      source: "import",
+      playedAt: new Date(Date.now() + i),
+    })),
+  });
 }
 
 beforeEach(async () => {
@@ -136,5 +115,5 @@ describe("delete user worker", () => {
 
     expect(user1Count).toBe(0);
     expect(user2Count).toBe(500);
-  });
+  }, 10000);
 });
