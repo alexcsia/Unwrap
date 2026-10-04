@@ -1,14 +1,16 @@
-// integration tests
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-
 import prisma from "@/utils/prisma.util";
-import { spotifyGetHistoryHandler } from "../getHistory";
 
 const mockedFetchRecentTracks = mock();
+const mockedArtistIds = mock();
 
-mock.module("@/platforms/spotify/utils", () => ({
+const mockedUtils = {
   fetchRecentTracks: mockedFetchRecentTracks,
-}));
+  getSpotifyArtistIds: mockedArtistIds,
+};
+import { createSpotifyGetHistoryHandler } from "../getHistory";
+
+const spotifyGetHistoryHandler = createSpotifyGetHistoryHandler(mockedUtils);
 
 async function cleanDatabase() {
   await prisma.listeningHistory.deleteMany();
@@ -47,8 +49,8 @@ async function createSpotifyConnection(userId: string) {
     data: {
       userId,
       platformName: "spotify",
-      AccessToken: "test-access-token",
-      RefreshToken: "test-refresh-token",
+      accessToken: "test-access-token",
+      refreshToken: "test-refresh-token",
       platformUserId: "platformUserId",
       expiresAt: "2026-08-08T00:00:00.000Z",
     },
