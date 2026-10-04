@@ -65,3 +65,9 @@ export const findTrackWithUserArtists = (trackId: string, userId: string) =>
       listeningHistory: { where: { userId }, take: 1 },
     },
   });
+
+export const findExclusionKeysByUserId = (userId: string) =>
+  prisma.exclusion.findMany({
+    where: { userId },
+    select: { type: true, targetId: true },
+  });
