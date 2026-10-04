@@ -45,3 +45,23 @@ export const getExclusionsByUserId = async (userId: string) => {
     orderBy: { excludedAt: "desc" },
   });
 };
+
+export const findArtistWithUserTracks = (artistId: string, userId: string) =>
+  prisma.artist.findUnique({
+    where: { id: artistId },
+    include: {
+      tracks: {
+        where: { listeningHistory: { some: { userId } } },
+        take: 1,
+      },
+    },
+  });
+
+export const findTrackWithUserArtists = (trackId: string, userId: string) =>
+  prisma.track.findUnique({
+    where: { id: trackId },
+    include: {
+      artists: { select: { name: true } },
+      listeningHistory: { where: { userId }, take: 1 },
+    },
+  });
