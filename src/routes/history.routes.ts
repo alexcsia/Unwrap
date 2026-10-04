@@ -7,7 +7,7 @@ import { getHistoryController } from "@/controllers/listening-history/getHistory
 import { validatePlatform } from "@/middleware/platform.middleware";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
-import { idempotencyMiddleware } from "@/middleware/idempotency.middleware";
+import { createIdempotencyMiddleware } from "@/middleware/idempotency/idempotency.middleware";
 import { validateRequest } from "@/middleware/validateRequest.middleware";
 import { getHistorySchema } from "@/schemas";
 import { validateZipUpload } from "@/middleware/upload.middleware";
@@ -33,7 +33,7 @@ router.post(
   upload.single("history"),
   validatePlatform,
   validateZipUpload,
-  idempotencyMiddleware,
+  createIdempotencyMiddleware(),
   prepareUploadPaths,
   uploadHistoryController,
 );
