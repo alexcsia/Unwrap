@@ -1,45 +1,21 @@
 import prisma from "@/utils/prisma.util";
-import { saveListeningHistory } from "@/models/listeningHistory.model";
-import { getSpotifyArtistIds } from "@/platforms/spotify/utils";
+import * as trackModel from "@/models/track.model";
+import * as artistModel from "@/models/artist.model";
+import * as listeningHistoryModel from "@/models/listeningHistory.model";
+import * as spotifyUtils from "@/platforms/spotify/utils";
+import { redisCache } from "@/lib/redis";
 import type {
   SpotifyArtistDTO,
   SpotifyListeningHistoryDTO,
   SpotifyTrackDTO,
 } from "@/platforms/spotify/types";
-import { findOrCreateArtist } from "@/models/artist.model";
-import {
-  findOrCreateTrack,
-  connectArtistsAndTrack,
-} from "@/models/track.model";
 import type {
   UploadData,
   UploadArtist,
   HistoryIngestionJobData,
 } from "../types";
 import { CACHE_TTL_SEC } from "../shared/rateLimit";
-import { redisCache } from "@/lib/redis";
 import type { SpotifyConnection } from "@/models/connectedPlatforms/types";
-
-export const saveHistoryRecords = async (
-  track: SpotifyTrackDTO,
-  artists: SpotifyArtistDTO[],
-  listeningHistory: SpotifyListeningHistoryDTO,
-  entry: UploadData,
-  userId: string,
-) => {
-  await prisma.$transaction(async () => {
-    const savedTrack = await findOrCreateTrack(track, entry.platformName);
-    if (!savedTrack) {
-      throw new Error(`Failed to find or create track: ${entry.trackName}`);
-    }
-
-    const savedArtists = await findOrCreateArtist(artists, entry.platformName);
-
-    await connectArtistsAndTrack(savedTrack, savedArtists);
-
-    await saveListeningHistory(listeningHistory, savedTrack.id, userId);
-  });
-};
 
 export const toSpotifyDTOs = (
   entry: UploadData,
@@ -72,31 +48,7 @@ export const toSpotifyDTOs = (
     platformId: a.platformId,
   }));
 
-  console.log("mapped to dto:", artists);
   return { track, listeningHistory, artists };
-};
-
-export const fetchAndCacheSpotifyArtists = async (
-  entry: UploadData,
-  connection: SpotifyConnection,
-  cacheKey: string,
-): Promise<UploadArtist[]> => {
-  const artistsFromSpotify = await getSpotifyArtistIds(
-    entry.platformTrackId,
-    connection,
-  );
-
-  await redisCache.set(
-    cacheKey,
-    JSON.stringify(artistsFromSpotify),
-    "EX",
-    CACHE_TTL_SEC,
-  );
-
-  return artistsFromSpotify.map((a) => ({
-    platformId: a.platformId,
-    name: a.name,
-  }));
 };
 
 export function toUploadData(
@@ -128,3 +80,87 @@ export function toUploadData(
       })),
   };
 }
+
+export type SaveHistoryRepo = {
+  findOrCreateTrack: typeof trackModel.findOrCreateTrack;
+  findOrCreateArtist: typeof artistModel.findOrCreateArtist;
+  connectArtistsAndTrack: typeof trackModel.connectArtistsAndTrack;
+  saveListeningHistory: typeof listeningHistoryModel.saveListeningHistory;
+  transaction: <T>(fn: () => Promise<T>) => Promise<T>;
+};
+
+const defaultSaveHistoryRepo: SaveHistoryRepo = {
+  findOrCreateTrack: trackModel.findOrCreateTrack,
+  findOrCreateArtist: artistModel.findOrCreateArtist,
+  connectArtistsAndTrack: trackModel.connectArtistsAndTrack,
+  saveListeningHistory: listeningHistoryModel.saveListeningHistory,
+  transaction: (fn) => prisma.$transaction(fn),
+};
+
+export const createSaveHistoryRecords =
+  (repo: SaveHistoryRepo = defaultSaveHistoryRepo) =>
+  async (
+    track: SpotifyTrackDTO,
+    artists: SpotifyArtistDTO[],
+    listeningHistory: SpotifyListeningHistoryDTO,
+    entry: UploadData,
+    userId: string,
+  ) => {
+    await repo.transaction(async () => {
+      const savedTrack = await repo.findOrCreateTrack(
+        track,
+        entry.platformName,
+      );
+      if (!savedTrack) {
+        throw new Error(`Failed to find or create track: ${entry.trackName}`);
+      }
+
+      const savedArtists = await repo.findOrCreateArtist(
+        artists,
+        entry.platformName,
+      );
+      await repo.connectArtistsAndTrack(savedTrack, savedArtists);
+      await repo.saveListeningHistory(listeningHistory, savedTrack.id, userId);
+    });
+  };
+
+export const saveHistoryRecords = createSaveHistoryRecords();
+
+export type SpotifyArtistsDeps = {
+  getSpotifyArtistIds: typeof spotifyUtils.getSpotifyArtistIds;
+  cache: { set: typeof redisCache.set };
+  cacheTtlSec: number;
+};
+
+const defaultSpotifyArtistsDeps: SpotifyArtistsDeps = {
+  getSpotifyArtistIds: spotifyUtils.getSpotifyArtistIds,
+  cache: redisCache,
+  cacheTtlSec: CACHE_TTL_SEC,
+};
+
+export const createFetchAndCacheSpotifyArtists =
+  (deps: SpotifyArtistsDeps = defaultSpotifyArtistsDeps) =>
+  async (
+    entry: UploadData,
+    connection: SpotifyConnection,
+    cacheKey: string,
+  ): Promise<UploadArtist[]> => {
+    const artistsFromSpotify = await deps.getSpotifyArtistIds(
+      entry.platformTrackId,
+      connection,
+    );
+
+    await deps.cache.set(
+      cacheKey,
+      JSON.stringify(artistsFromSpotify),
+      "EX",
+      deps.cacheTtlSec,
+    );
+
+    return artistsFromSpotify.map((a) => ({
+      platformId: a.platformId,
+      name: a.name,
+    }));
+  };
+
+export const fetchAndCacheSpotifyArtists = createFetchAndCacheSpotifyArtists();
