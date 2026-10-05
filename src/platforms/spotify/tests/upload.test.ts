@@ -36,18 +36,17 @@ function createSpotifyZip(files: Record<string, unknown[]>) {
   fs.mkdirSync(TEST_ROOT, { recursive: true });
   zip.writeZip(ZIP_PATH);
 }
+beforeEach(() => {
+  fs.rmSync(TEST_ROOT, { recursive: true, force: true });
+  mockedProcessor.mockReset();
+  mockedProcessor.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  fs.rmSync(TEST_ROOT, { recursive: true, force: true });
+});
 
 describe("spotifyUploadHandler", () => {
-  beforeEach(() => {
-    fs.rmSync(TEST_ROOT, { recursive: true, force: true });
-    mockedProcessor.mockReset();
-    mockedProcessor.mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    fs.rmSync(TEST_ROOT, { recursive: true, force: true });
-  });
-
   test("extracts ZIP, processes all JSON files, and cleans up", async () => {
     const file1 = [
       createSpotifyEntry({ spotify_track_uri: "spotify:track:track-1" }),
