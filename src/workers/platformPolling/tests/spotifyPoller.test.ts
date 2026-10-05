@@ -1,75 +1,73 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-  test,
-} from "bun:test";
-
-import { spotifyPoller } from "../spotifyPoller";
-import prisma from "@/utils/prisma.util";
-import { redisCache } from "@/lib/queue";
+import { beforeEach, describe, expect, it, mock, test } from "bun:test";
 import { Job } from "bullmq";
+import { createSpotifyPoller } from "../spotifyPoller";
+import { createPlatformPollingProcessor } from "../processPlatformPolling";
+import { SpotifyRateLimitError } from "@/errors/spotifyRateLimitError";
+import type { SpotifyConnection } from "@/models/connectedPlatforms/types";
+import type { pollerData } from "@/workers/types";
+import type { WorkerUtils } from "../../shared";
 
 const fetchRecentTracks = mock();
 const redisSet = mock();
 const redisDel = mock();
 const redisGet = mock();
-const getPlatformConnection = mock();
 const findOrCreateArtist = mock();
 const connectArtistsAndTrack = mock();
 const findOrCreateTrack = mock();
 const saveListeningHistory = mock();
 const prismaTransaction = mock();
+
+const getPlatformConnection = mock<() => Promise<SpotifyConnection>>();
+
+const spotifyPoller = createSpotifyPoller({
+  fetchRecentTracks: fetchRecentTracks as any,
+  cache: {
+    set: redisSet as any,
+    get: redisGet as any,
+    del: redisDel as any,
+  },
+  findOrCreateTrack: findOrCreateTrack as any,
+  findOrCreateArtist: findOrCreateArtist as any,
+  connectArtistsAndTrack: connectArtistsAndTrack as any,
+  saveListeningHistory: saveListeningHistory as any,
+  transaction: prismaTransaction as any,
+});
+
 const respectRateLimit = mock();
 const checkRateLimited = mock();
 
-mock.module("../../shared", () => ({
-  default: {
-    locks: {},
-    rateLimits: {
-      respectRateLimit,
-      checkRateLimited,
-    },
+const mockedUtils: WorkerUtils = {
+  locks: { acquireEnrichmentLock: mock() },
+  rateLimits: {
+    checkRateLimited,
+    respectRateLimit,
+    CACHE_TTL_SEC: 123,
   },
-}));
+};
+const processPlatformPolling = createPlatformPollingProcessor({
+  utils: mockedUtils,
+  getPlatformAdapter: (platform) =>
+    ({
+      poll: spotifyPoller,
+    }) as any,
+  getPlatformConnection: getPlatformConnection as any,
+});
 
-import { processPlatformPolling } from "../processPlatformPolling";
-import { SpotifyRateLimitError } from "@/errors/spotifyRateLimitError";
+const job = {
+  id: "test-job",
+  data: { userId: "user-1", platform: "spotify" },
+} as unknown as Job<pollerData>;
 
-mock.module("@/platforms/spotify/utils", () => ({
-  fetchRecentTracks,
-}));
-
-mock.module("@/models/connectedPlatforms.model", () => ({
-  getPlatformConnection,
-}));
-
-mock.module("@/models/artist.model", () => ({
-  findOrCreateArtist,
-}));
-
-mock.module("@/models/track.model", () => ({
-  connectArtistsAndTrack,
-  findOrCreateTrack,
-}));
-
-mock.module("@/models/listeningHistory.model", () => ({
-  saveListeningHistory,
-}));
-
-const originalTransaction = prisma.$transaction;
-
-const originalRedisSet = redisCache.set;
-const originalRedisDel = redisCache.del;
-const originalRedisGet = redisCache.get;
-
-const user = {
+const spotifyConnection: SpotifyConnection = {
+  id: "1234",
   userId: "user-1",
-  platform: "spotify",
-} as any;
+  connectedAt: "2026-01-01T12:00:00Z" as unknown as Date,
+  platformName: "spotify",
+  platformUserId: "123",
+  accessToken: "access",
+  refreshToken: "refresh",
+  expiresAt: "2026-01-01T12:00:00Z" as unknown as Date,
+};
 
 const track = {
   trackName: "Track 1",
@@ -82,65 +80,39 @@ const track = {
 
 beforeEach(() => {
   fetchRecentTracks.mockReset();
-
   redisSet.mockReset();
   redisDel.mockReset();
   redisGet.mockReset();
   respectRateLimit.mockReset();
   checkRateLimited.mockReset();
-
-  respectRateLimit.mockResolvedValue(undefined);
-  getPlatformConnection.mockReset();
   findOrCreateArtist.mockReset();
   connectArtistsAndTrack.mockReset();
   findOrCreateTrack.mockReset();
   saveListeningHistory.mockReset();
   prismaTransaction.mockReset();
 
-  redisCache.set = redisSet as typeof redisCache.set;
-  redisCache.del = redisDel as typeof redisCache.del;
-  redisCache.get = redisGet as typeof redisCache.get;
-
-  prisma.$transaction =
-    prismaTransaction as unknown as typeof prisma.$transaction;
-
+  respectRateLimit.mockResolvedValue(undefined);
   redisSet.mockResolvedValue("OK");
   redisDel.mockResolvedValue(1);
   redisGet.mockResolvedValue(null);
-
-  getPlatformConnection.mockResolvedValue({
-    accessToken: "token",
-  });
-
   fetchRecentTracks.mockResolvedValue([track]);
-
-  findOrCreateTrack.mockResolvedValue({
-    id: "track-1",
-  });
-
+  findOrCreateTrack.mockResolvedValue({ id: "track-1" });
   findOrCreateArtist.mockResolvedValue([{ id: "artist-1" }]);
-
   connectArtistsAndTrack.mockResolvedValue(undefined);
   saveListeningHistory.mockResolvedValue(undefined);
-
-  prismaTransaction.mockImplementation(async (callback: any) => {
-    return callback();
-  });
-});
-
-afterEach(() => {
-  prisma.$transaction = originalTransaction;
-
-  redisCache.set = originalRedisSet;
-  redisCache.del = originalRedisDel;
-  redisCache.get = originalRedisGet;
+  prismaTransaction.mockImplementation(async (fn: () => Promise<unknown>) =>
+    fn(),
+  );
 });
 
 describe("spotifyPoller", () => {
   it("processes new tracks and advances the cursor", async () => {
-    await spotifyPoller(user);
+    await spotifyPoller(spotifyConnection);
 
-    expect(fetchRecentTracks).toHaveBeenCalledWith(user, undefined);
+    expect(fetchRecentTracks).toHaveBeenCalledWith(
+      spotifyConnection,
+      undefined,
+    );
 
     expect(findOrCreateTrack).toHaveBeenCalledWith(track, "spotify");
 
@@ -164,18 +136,9 @@ describe("spotifyPoller", () => {
   it("does nothing when the poller lock is already held", async () => {
     redisSet.mockResolvedValueOnce(null);
 
-    await spotifyPoller(user);
+    await spotifyPoller(spotifyConnection);
 
     expect(getPlatformConnection).not.toHaveBeenCalled();
-    expect(fetchRecentTracks).not.toHaveBeenCalled();
-    expect(prismaTransaction).not.toHaveBeenCalled();
-  });
-
-  it("does nothing when the Spotify connection does not exist", async () => {
-    getPlatformConnection.mockResolvedValue(null);
-
-    await spotifyPoller(user);
-
     expect(fetchRecentTracks).not.toHaveBeenCalled();
     expect(prismaTransaction).not.toHaveBeenCalled();
   });
@@ -183,7 +146,7 @@ describe("spotifyPoller", () => {
   it("does nothing when there are no new tracks", async () => {
     fetchRecentTracks.mockResolvedValue([]);
 
-    await spotifyPoller(user);
+    await spotifyPoller(spotifyConnection);
 
     expect(prismaTransaction).not.toHaveBeenCalled();
 
@@ -193,15 +156,17 @@ describe("spotifyPoller", () => {
   it("uses the existing cursor when fetching tracks", async () => {
     redisGet.mockResolvedValue("123456");
 
-    await spotifyPoller(user);
+    await spotifyPoller(spotifyConnection);
 
-    expect(fetchRecentTracks).toHaveBeenCalledWith(user, "123456");
+    expect(fetchRecentTracks).toHaveBeenCalledWith(spotifyConnection, "123456");
   });
 
   it("does not advance the cursor when persistence fails", async () => {
     saveListeningHistory.mockRejectedValue(new Error("database failure"));
 
-    await expect(spotifyPoller(user)).rejects.toThrow("database failure");
+    await expect(spotifyPoller(spotifyConnection)).rejects.toThrow(
+      "database failure",
+    );
 
     expect(redisSet).not.toHaveBeenCalledWith(
       "spotify-cursor:user-1",
@@ -214,13 +179,15 @@ describe("spotifyPoller", () => {
   it("releases the lock when processing fails", async () => {
     saveListeningHistory.mockRejectedValue(new Error("database failure"));
 
-    await expect(spotifyPoller(user)).rejects.toThrow("database failure");
+    await expect(spotifyPoller(spotifyConnection)).rejects.toThrow(
+      "database failure",
+    );
 
     expect(redisDel).toHaveBeenCalledWith("spotify-poll-lock:user-1");
   });
 
   it("releases the lock after successful processing", async () => {
-    await spotifyPoller(user);
+    await spotifyPoller(spotifyConnection);
 
     expect(redisDel).toHaveBeenCalledWith("spotify-poll-lock:user-1");
   });
@@ -228,7 +195,9 @@ describe("spotifyPoller", () => {
   it("propagates a failed transaction", async () => {
     prismaTransaction.mockRejectedValue(new Error("transaction failed"));
 
-    await expect(spotifyPoller(user)).rejects.toThrow("transaction failed");
+    await expect(spotifyPoller(spotifyConnection)).rejects.toThrow(
+      "transaction failed",
+    );
 
     expect(redisDel).toHaveBeenCalledWith("spotify-poll-lock:user-1");
   });
@@ -237,16 +206,8 @@ describe("spotifyPoller", () => {
     test("handles SpotifyRateLimitError", async () => {
       const rateLimitError = new SpotifyRateLimitError("30");
 
+      getPlatformConnection.mockResolvedValue(spotifyConnection);
       fetchRecentTracks.mockRejectedValue(rateLimitError);
-
-      const job = {
-        id: "test-job",
-        data: {
-          userConnectedPlatforms: user,
-          platform: "spotify",
-        },
-        moveToDelayed: mock(),
-      } as unknown as Job;
 
       await processPlatformPolling(job);
 

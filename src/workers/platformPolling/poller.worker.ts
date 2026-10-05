@@ -1,11 +1,11 @@
 import type { pollerData } from "../types";
 import { Worker } from "bullmq";
 import { redisConnection } from "@/lib/redis";
-import { processPlatformPolling } from "./processPlatformPolling";
+import { createPlatformPollingProcessor } from "./processPlatformPolling";
 
 export const pollerWorker = new Worker<pollerData>(
   "platform-poll",
-  processPlatformPolling,
+  createPlatformPollingProcessor(),
 
   {
     concurrency: 5,
