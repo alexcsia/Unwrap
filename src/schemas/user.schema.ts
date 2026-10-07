@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../openapi/zod";
 
 export const createUserSchema = z.object({
   email: z.email().max(254),

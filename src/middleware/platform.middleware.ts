@@ -1,5 +1,7 @@
 import { ApiError } from "@/errors/ApiError";
 import type { Request, Response, NextFunction } from "express";
+import { allowedPlatforms } from "../platforms/types";
+import type { Platform } from "@/models/connectedPlatforms/types";
 
 /**
  * Middleware: validatePlatform
@@ -13,11 +15,9 @@ import type { Request, Response, NextFunction } from "express";
  * - Attaches platform to req.platform
  */
 
-const allowedPlatforms = ["spotify", "tidal", "apple_music"];
-
 export const validatePlatform = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction,
 ) => {
   const { platform } = req.params;
@@ -29,11 +29,11 @@ export const validatePlatform = (
       "Platform parameter is missing",
     );
   }
-  if (!allowedPlatforms.includes(platform)) {
+
+  if (!allowedPlatforms.includes(platform as Platform)) {
     throw new ApiError(400, "UNSUPPORTED_PLATFORM", "Unsupported platform");
   }
 
-  req.platform = platform;
-
+  req.platform = platform as Platform;
   next();
 };

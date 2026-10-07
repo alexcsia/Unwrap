@@ -1,0 +1,52 @@
+import type { HistoryResponse } from "./spotify/types";
+import type { Request, Response } from "express";
+import type { UploadData } from "@/workers/types";
+import type { IngestionResult } from "@/workers/historyIngestion/types";
+import type {
+  Platform,
+  PlatformConnectionMap,
+} from "@/models/connectedPlatforms/types";
+
+const platformRegistry: Record<Platform, true> = {
+  spotify: true,
+  lastfm: true,
+};
+
+export const allowedPlatforms = Object.keys(platformRegistry) as Platform[];
+
+export interface PlatformAdapter<P extends Platform> {
+  platformName: P;
+
+  // auth
+  exchangeCode?: (userId: string, code: string) => Promise<TokenExchangeResult>;
+  refreshToken?: (user: PlatformConnectionMap[P]) => Promise<string>;
+  initiateOAuth: (
+    res: Response,
+    userId: string,
+  ) => Promise<{ redirectUrl: string }>;
+  revokeToken?: (accessToken: string) => Promise<void>;
+  disconnect?: (userId: string) => Promise<void>;
+  handleCallback: (
+    userId: string,
+    query: Request["query"],
+  ) => Promise<{ success: boolean; message: string }>;
+
+  // history
+  uploadHistory?: (
+    filePath: string,
+    extractedPath: string,
+    userId: string,
+  ) => Promise<{ success: boolean; message: string }>;
+  getHistory?: (userId: string) => Promise<HistoryResponse>;
+  ingestHistory?: (
+    userId: string,
+    entry: UploadData,
+  ) => Promise<IngestionResult>;
+  poll?: (connection: PlatformConnectionMap[P]) => void;
+}
+
+export interface TokenExchangeResult {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}

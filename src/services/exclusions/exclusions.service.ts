@@ -1,158 +1,102 @@
 import { ApiError } from "@/errors/ApiError";
-import {
-  addExclusion,
-  deleteExclusion,
-  getExclusionsByUserId,
-} from "@/models/exclusion.model";
-import prisma from "@/utils/prisma.util";
+import * as exclusionModel from "@/models/exclusion.model";
 
-/**
- * Service: addExclusionService
- *
- * Creates a user exclusion for an artist or track.
- *
- * Flow:
- * - Validates targetId
- * - Fetches metadata based on type
- *   - Artist: from artist table
- *   - Track: from listening history
- * - Stores exclusion record in database
- *
- * Returns:
- * - exclusion id
- * - name
- * - excludedAt timestamp
- *
- * Errors:
- * - 400 if targetId is missing
- * - 404 if artist or track is not found
- */
+export type ExclusionRepo = {
+  addExclusion: typeof exclusionModel.addExclusion;
+  deleteExclusion: typeof exclusionModel.deleteExclusion;
+  getExclusionsByUserId: typeof exclusionModel.getExclusionsByUserId;
+  findArtistWithUserTracks: typeof exclusionModel.findArtistWithUserTracks;
+  findTrackWithUserArtists: typeof exclusionModel.findTrackWithUserArtists;
+};
 
-export const addExclusionService = async (
-  userId: string,
-  data: { type: "artist" | "track"; targetId: string },
-) => {
-  const { type, targetId } = data;
-  if (!targetId) {
-    throw new ApiError(
-      400,
-      "BAD_REQUEST",
-      "targetId is required to create an exclusion.",
-    );
-  }
-  let name = "";
-  let artistName: string = "";
-  let albumName: string | null = null;
-
-  if (type === "artist") {
-    const artist = await prisma.artist.findUnique({
-      where: { platformId: targetId },
-    });
-
-    if (!artist) {
+export const createExclusionsService = (
+  repo: ExclusionRepo = exclusionModel,
+) => ({
+  addExclusionService: async (
+    userId: string,
+    data: { type: "artist" | "track"; targetId: string },
+  ) => {
+    const { type, targetId } = data;
+    if (!targetId)
       throw new ApiError(
-        404,
-        "NOT_FOUND",
-        "Artist not found in local database.",
+        400,
+        "BAD_REQUEST",
+        "targetId is required to create an exclusion.",
       );
+
+    let name = "",
+      artistName = "",
+      albumName: string | null = null;
+
+    if (type === "artist") {
+      const artist = await repo.findArtistWithUserTracks(targetId, userId);
+      if (!artist) throw new ApiError(404, "NOT_FOUND", "Artist not found");
+      name = artist.name;
+    } else if (type === "track") {
+      const track = await repo.findTrackWithUserArtists(targetId, userId);
+      if (!track || track.listeningHistory.length === 0) {
+        throw new ApiError(404, "NOT_FOUND", "Track not found");
+      }
+      name = track.trackName;
+      albumName = track.albumName;
+      artistName = track.artists.map((a) => a.name).join(", ");
     }
-    name = artist.name;
-  } else if (type === "track") {
-    const track = await prisma.listeningHistory.findFirst({
-      where: { platformTrackId: targetId, userId },
-      include: { artists: true },
+
+    const exclusion = await repo.addExclusion(userId, {
+      type,
+      targetId,
+      name,
+      artistName,
+      albumName,
     });
+    return {
+      id: exclusion.id,
+      name: exclusion.name,
+      excludedAt: exclusion.excludedAt,
+    };
+  },
 
-    if (!track) {
-      throw new ApiError(404, "NOT_FOUND", "Track not found in your history.");
-    }
+  removeExclusionService: async (
+    userId: string,
+    type: string,
+    targetId: string,
+  ) => {
+    const result = await repo.deleteExclusion(userId, type, targetId);
+    if (result.count === 0)
+      throw new ApiError(404, "NOT_FOUND", "Exclusion not found");
+    return { success: true };
+  },
 
-    name = track.trackName;
-    albumName = track.albumName;
-    artistName = track.artists.map((a) => a.name).join(", ");
-  }
+  getExclusionsService: async (userId: string) => {
+    const exclusions = await repo.getExclusionsByUserId(userId);
 
-  const exclusion = await addExclusion(userId, {
-    type,
-    targetId,
-    name,
-    artistName,
-    albumName,
-  });
+    return {
+      exclusions: {
+        artists: exclusions
+          .filter((e) => e.type === "artist")
+          .map((e) => ({
+            type: "artist",
+            artistId: e.targetId,
+            artistName: e.name,
+            excludedAt: e.excludedAt,
+          })),
+        tracks: exclusions
+          .filter((e) => e.type === "track")
+          .map((e) => ({
+            type: "track",
+            trackId: e.targetId,
+            trackName: e.name,
+            artistName: e.artistName,
+            albumName: e.albumName,
+            excludedAt: e.excludedAt,
+          })),
+      },
+    };
+  },
+});
 
-  return {
-    id: exclusion.id,
-    name: exclusion.name,
-    excludedAt: exclusion.excludedAt,
-  };
-};
-
-/**
- * Service: removeExclusionService
- *
- * Deletes an existing exclusion for a user.
- *
- * Flow:
- * - Deletes exclusion by userId, type, and targetId
- *
- * Returns:
- * - success flag
- *
- * Errors:
- * - 404 if no matching exclusion exists
- */
-
-export const removeExclusionService = async (
-  userId: string,
-  type: string,
-  targetId: string,
-) => {
-  const result = await deleteExclusion(userId, type, targetId);
-
-  if (result.count === 0) {
-    throw new ApiError(404, "NOT_FOUND", "No exclusion found to delete");
-  }
-
-  return { success: true };
-};
-
-/**
- * Service: getExclusionsService
- *
- * Retrieves all exclusions for a user.
- *
- * Flow:
- * - Fetches all exclusions from database
- * - Groups results by artist and track
- *
- * Returns:
- * - artists: excluded artist list
- * - tracks: excluded track list
- */
-
-export const getExclusionsService = async (userId: string) => {
-  const exclusions = await getExclusionsByUserId(userId);
-
-  return {
-    exclusions: {
-      artists: exclusions
-        .filter((e) => e.type === "artist")
-        .map((e) => ({
-          type: "artist",
-          artistId: e.targetId,
-          artistName: e.name,
-          excludedAt: e.excludedAt,
-        })),
-      tracks: exclusions
-        .filter((e) => e.type === "track")
-        .map((e) => ({
-          type: "track",
-          trackId: e.targetId,
-          trackName: e.name,
-          artistName: e.artistName,
-          albumName: e.albumName,
-          excludedAt: e.excludedAt,
-        })),
-    },
-  };
-};
+export const {
+  addExclusionService,
+  removeExclusionService,
+  getExclusionsService,
+} = createExclusionsService();

@@ -1,174 +1,173 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { ApiError } from "@/errors/ApiError";
 import {
-  addExclusionService,
-  removeExclusionService,
-  getExclusionsService,
+  createExclusionsService,
+  type ExclusionRepo,
 } from "./exclusions.service";
-import * as exclusionModel from "@/models/exclusion.model";
-import prisma from "@/utils/prisma.util";
 
-mock.module("@/models/exclusion.model", () => ({
-  addExclusion: mock(),
-  deleteExclusion: mock(),
-  getExclusionsByUserId: mock(),
-}));
+function makeRepo(): ExclusionRepo {
+  return {
+    addExclusion: mock(),
+    deleteExclusion: mock(),
+    getExclusionsByUserId: mock(),
+    findArtistWithUserTracks: mock(),
+    findTrackWithUserArtists: mock(),
+  };
+}
 
-mock.module("@/utils/prisma.util", () => ({
-  default: {
-    artist: {
-      findUnique: mock(),
-    },
-    listeningHistory: {
-      findFirst: mock(),
-    },
-  },
-}));
+const userId = "user-123";
 
-describe("Exclusion Service", () => {
-  const userId = "user-123";
+let repo: ExclusionRepo;
 
-  beforeEach(() => {
-    mock.restore();
-    (exclusionModel.addExclusion as any).mockClear();
-    (exclusionModel.deleteExclusion as any).mockClear();
-    (exclusionModel.getExclusionsByUserId as any).mockClear();
-    (prisma.artist.findUnique as any).mockClear();
-    (prisma.listeningHistory.findFirst as any).mockClear();
-  });
+let addExclusionService: ReturnType<
+  typeof createExclusionsService
+>["addExclusionService"];
+let removeExclusionService: ReturnType<
+  typeof createExclusionsService
+>["removeExclusionService"];
+let getExclusionsService: ReturnType<
+  typeof createExclusionsService
+>["getExclusionsService"];
 
-  describe("addExclusionService", () => {
-    test("should add an artist exclusion after successful DB lookup", async () => {
-      const targetId = "artist-456";
-      const mockArtist = {
-        id: "a1",
-        name: "Taylor Swift",
-        platformId: targetId,
-      };
-      const mockExclusion = {
-        id: "excl-1",
-        name: "Taylor Swift",
-        excludedAt: new Date(),
-      };
-
-      (prisma.artist.findUnique as any).mockResolvedValue(mockArtist);
-      (exclusionModel.addExclusion as any).mockResolvedValue(mockExclusion);
-
-      const result = await addExclusionService(userId, {
-        type: "artist",
-        targetId,
-      });
-
-      expect(prisma.artist.findUnique).toHaveBeenCalledWith({
-        where: { platformId: targetId },
-      });
-
-      expect(exclusionModel.addExclusion).toHaveBeenCalledWith(userId, {
-        type: "artist",
-        targetId,
-        name: "Taylor Swift",
-        artistName: "",
-        albumName: null,
-      });
-
-      expect(result.name).toBe("Taylor Swift");
+beforeEach(() => {
+  repo = makeRepo();
+  ({ addExclusionService, removeExclusionService, getExclusionsService } =
+    createExclusionsService(repo));
+});
+describe("addExclusionService", () => {
+  test("adds an artist exclusion after a successful lookup", async () => {
+    (repo.findArtistWithUserTracks as any).mockResolvedValue({
+      id: "artist-456",
+      name: "Taylor Swift",
+      tracks: [{ id: "track1" }],
+    });
+    (repo.addExclusion as any).mockResolvedValue({
+      id: "excl-1",
+      name: "Taylor Swift",
+      excludedAt: new Date(),
     });
 
-    test("should add a track exclusion after successful history lookup", async () => {
-      const targetId = "track-789";
-      const mockTrack = {
-        trackName: "Cruel Summer",
-        albumName: "Lover",
-        artists: [{ name: "Taylor Swift" }],
-      };
-      const mockExclusion = {
-        id: "excl-2",
-        name: "Cruel Summer",
-        excludedAt: new Date(),
-      };
+    const result = await addExclusionService(userId, {
+      type: "artist",
+      targetId: "artist-456",
+    });
 
-      (prisma.listeningHistory.findFirst as any).mockResolvedValue(mockTrack);
-      (exclusionModel.addExclusion as any).mockResolvedValue(mockExclusion);
+    expect(repo.findArtistWithUserTracks).toHaveBeenCalledWith(
+      "artist-456",
+      userId,
+    );
+    expect(repo.addExclusion).toHaveBeenCalledWith(userId, {
+      type: "artist",
+      targetId: "artist-456",
+      name: "Taylor Swift",
+      artistName: "",
+      albumName: null,
+    });
+    expect(result.name).toBe("Taylor Swift");
+  });
 
-      await addExclusionService(userId, { type: "track", targetId });
+  test("adds a track exclusion after a successful history lookup", async () => {
+    (repo.findTrackWithUserArtists as any).mockResolvedValue({
+      trackName: "Cruel Summer",
+      albumName: "Lover",
+      artists: [{ name: "Taylor Swift" }],
+      listeningHistory: [{ id: "lh1" }],
+    });
+    (repo.addExclusion as any).mockResolvedValue({
+      id: "excl-2",
+      name: "Cruel Summer",
+      excludedAt: new Date(),
+    });
 
-      expect(prisma.listeningHistory.findFirst).toHaveBeenCalled();
-      expect(exclusionModel.addExclusion).toHaveBeenCalledWith(userId, {
+    await addExclusionService(userId, { type: "track", targetId: "track-789" });
+
+    expect(repo.findTrackWithUserArtists).toHaveBeenCalledWith(
+      "track-789",
+      userId,
+    );
+    expect(repo.addExclusion).toHaveBeenCalledWith(userId, {
+      type: "track",
+      targetId: "track-789",
+      name: "Cruel Summer",
+      artistName: "Taylor Swift",
+      albumName: "Lover",
+    });
+  });
+
+  test("throws 404 when the artist is not found", async () => {
+    (repo.findArtistWithUserTracks as any).mockResolvedValue(null);
+
+    await expect(
+      addExclusionService(userId, { type: "artist", targetId: "missing" }),
+    ).rejects.toThrow(/Artist not found/);
+  });
+
+  test("throws 404 when the track has no listening history", async () => {
+    (repo.findTrackWithUserArtists as any).mockResolvedValue({
+      trackName: "x",
+      albumName: "y",
+      artists: [],
+      listeningHistory: [],
+    });
+
+    await expect(
+      addExclusionService(userId, { type: "track", targetId: "t" }),
+    ).rejects.toThrow(/Track not found/);
+  });
+
+  test("throws 400 when targetId is missing", async () => {
+    await expect(
+      addExclusionService(userId, { type: "artist", targetId: "" }),
+    ).rejects.toThrow(/targetId is required/);
+  });
+});
+
+describe("removeExclusionService", () => {
+  test("returns success when a row was deleted", async () => {
+    (repo.deleteExclusion as any).mockResolvedValue({ count: 1 });
+
+    const result = await removeExclusionService(userId, "artist", "target-1");
+    expect(result).toEqual({ success: true });
+    expect(repo.deleteExclusion).toHaveBeenCalledWith(
+      userId,
+      "artist",
+      "target-1",
+    );
+  });
+
+  test("throws 404 when nothing was deleted", async () => {
+    (repo.deleteExclusion as any).mockResolvedValue({ count: 0 });
+
+    await expect(
+      removeExclusionService(userId, "artist", "target-1"),
+    ).rejects.toThrow(ApiError);
+  });
+});
+
+describe("getExclusionsService", () => {
+  test("groups and formats exclusions", async () => {
+    const now = new Date();
+    (repo.getExclusionsByUserId as any).mockResolvedValue([
+      { type: "artist", targetId: "a1", name: "Artist Name", excludedAt: now },
+      {
         type: "track",
-        targetId,
-        name: "Cruel Summer",
-        artistName: "Taylor Swift",
-        albumName: "Lover",
-      });
-    });
-
-    test("should throw 404 if artist is not found in database", async () => {
-      (prisma.artist.findUnique as any).mockResolvedValue(null);
-
-      await expect(
-        addExclusionService(userId, { type: "artist", targetId: "missing" }),
-      ).rejects.toThrow(
-        new ApiError(404, "NOT_FOUND", "Artist not found in local database."),
-      );
-    });
-
-    test("should throw 400 if targetId is missing", async () => {
-      await expect(
-        addExclusionService(userId, { type: "artist", targetId: "" }),
-      ).rejects.toThrow(/targetId is required/);
-    });
-  });
-
-  describe("removeExclusionService", () => {
-    test("should delete and return success", async () => {
-      (exclusionModel.deleteExclusion as any).mockResolvedValue({ count: 1 });
-
-      const result = await removeExclusionService(userId, "artist", "target-1");
-      expect(result).toEqual({ success: true });
-    });
-
-    test("should throw 404 if nothing deleted", async () => {
-      (exclusionModel.deleteExclusion as any).mockResolvedValue({ count: 0 });
-
-      await expect(
-        removeExclusionService(userId, "artist", "target-1"),
-      ).rejects.toThrow(ApiError);
-    });
-  });
-
-  describe("getExclusionsService", () => {
-    test("should correctly group and format exclusions", async () => {
-      const now = new Date();
-      const mockExclusions = [
-        {
-          type: "artist",
-          targetId: "a1",
-          name: "Artist Name",
-          excludedAt: now,
-        },
-        {
-          type: "track",
-          targetId: "t1",
-          name: "Track Name",
-          artistName: "Artist Name",
-          albumName: "Album Name",
-          excludedAt: now,
-        },
-      ];
-      (exclusionModel.getExclusionsByUserId as any).mockResolvedValue(
-        mockExclusions,
-      );
-
-      const result = await getExclusionsService(userId);
-
-      expect(result.exclusions.artists[0]).toMatchObject({
-        artistId: "a1",
+        targetId: "t1",
+        name: "Track Name",
         artistName: "Artist Name",
-      });
-      expect(result.exclusions.tracks[0]).toMatchObject({
-        trackId: "t1",
-        trackName: "Track Name",
-      });
+        albumName: "Album Name",
+        excludedAt: now,
+      },
+    ]);
+
+    const result = await getExclusionsService(userId);
+
+    expect(result.exclusions.artists[0]).toMatchObject({
+      artistId: "a1",
+      artistName: "Artist Name",
+    });
+    expect(result.exclusions.tracks[0]).toMatchObject({
+      trackId: "t1",
+      trackName: "Track Name",
     });
   });
 });

@@ -1,0 +1,111 @@
+import AdmZip from "adm-zip";
+import fs from "fs";
+import path from "path";
+import { createSpotifyEntriesProcessor } from "@/platforms/spotify/spotifyParser";
+import { ApiError } from "@/errors/ApiError";
+import { historyQueue } from "@/lib/queue";
+
+const SPOTIFY_HISTORY_FOLDER = "Spotify Extended Streaming History";
+
+interface ISpotifyListeningEntry {
+  ts: string;
+  master_metadata_track_name: string;
+  master_metadata_album_artist_name: string;
+  master_metadata_album_album_name: string;
+  ms_played: number;
+  spotify_track_uri: string;
+  [key: string]: any;
+}
+
+/**
+ * Service: spotifyUploadHandler
+ *
+ * Orchestrates the extraction, parsing, and processing of Spotify Extended Streaming History ZIP files.
+ *
+ * Flow:
+ * - Extracts the uploaded ZIP file to a temporary directory
+ * - Locates the "Spotify Extended Streaming History" folder within the extraction
+ * - Identifies all JSON files containing listening data
+ * - Iteratively reads each file and triggers the background processing (worker/queue) for tracks
+ * - Accumulates the total count of tracks submitted for synchronization
+ * - Executes a cleanup phase to remove temporary files and the original ZIP
+ *
+ * Returns:
+ * - success: Boolean indicating the sync process was successfully initiated
+ * - message: A string summarizing the number of tracks and files queued for processing
+ *
+ * Errors:
+ * - 400 if the expected Spotify history folder is missing from the ZIP
+ * - 500 if file system operations or ZIP extraction fails
+ */
+
+export const createSpotifyUploadHandler = (
+  processor = createSpotifyEntriesProcessor(historyQueue),
+) => {
+  return async (
+    filePath: string,
+    extractedPath: string,
+    userId: string,
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      extractZip(filePath, extractedPath);
+
+      const historyDir = path.join(extractedPath, SPOTIFY_HISTORY_FOLDER);
+
+      if (!fs.existsSync(historyDir)) {
+        throw new ApiError(
+          400,
+          "INVALID_UPLOAD",
+          "Spotify history folder not found",
+        );
+      }
+
+      const jsonFiles = getJsonFiles(historyDir);
+      let totalEntriesProcessed = 0;
+
+      console.log(
+        jsonFiles.length,
+        "JSON files found in Spotify history upload",
+      );
+
+      for (const file of jsonFiles) {
+        const entries = readListeningEntries(historyDir, file);
+        await processor(entries, userId);
+        totalEntriesProcessed += entries.length;
+      }
+      return {
+        success: true,
+        message: `Sync started for ${totalEntriesProcessed} tracks across ${jsonFiles.length} files.`,
+      };
+    } finally {
+      cleanup(filePath, extractedPath);
+    }
+  };
+
+  function extractZip(filePath: string, extractedPath: string) {
+    const zip = new AdmZip(filePath);
+    zip.extractAllTo(extractedPath, true);
+  }
+
+  function getJsonFiles(directory: string): string[] {
+    return fs.readdirSync(directory).filter((file) => file.endsWith(".json"));
+  }
+
+  function readListeningEntries(
+    directory: string,
+    file: string,
+  ): ISpotifyListeningEntry[] {
+    const fileContent = fs.readFileSync(path.join(directory, file), "utf-8");
+    return JSON.parse(fileContent);
+  }
+
+  function cleanup(filePath: string, extractedPath: string) {
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    if (extractedPath && fs.existsSync(extractedPath)) {
+      fs.rmSync(extractedPath, { recursive: true, force: true });
+    }
+  }
+};

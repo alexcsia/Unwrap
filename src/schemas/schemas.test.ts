@@ -6,17 +6,23 @@ import {
   topArtistsSchema,
   timeListenedSchema,
   createUserSchema,
-  createExclusionSchema,
-  deleteExclusionSchema,
+  exclusionParamsSchema,
   getHistorySchema,
-  spotifyCallbackSchema,
+  OAuthCallbackSchema,
 } from "@/schemas";
+
 import type { ZodSchema } from "zod";
 
-const createMockFile = (name: string, size: number, type: string): File => {
-  const blob = new Blob([new Uint8Array(size)], { type });
-  return new File([blob], name, { type });
-};
+const createMockFile = (
+  originalname: string,
+  size: number,
+  mimetype: string,
+) => ({
+  originalname,
+  size,
+  mimetype,
+  path: "/tmp/mock-file.zip",
+});
 
 const testAnalyticsSchemas = <T extends { limit?: any; offset?: any }>(
   schema: ZodSchema<T>,
@@ -70,7 +76,7 @@ const testAnalyticsSchemas = <T extends { limit?: any; offset?: any }>(
     });
 
     test("should enforce maximum limit constraints", () => {
-      const payload = { limit: 150 }; // Max allowed is 100
+      const payload = { limit: 150 };
       const result = schema.safeParse(payload);
       expect(result.success).toBe(false);
     });
@@ -118,14 +124,14 @@ describe("Auth Schemas", () => {
     });
   });
 
-  describe("spotifyCallbackSchema", () => {
+  describe("OAuthCallbackSchema", () => {
     test("should pass when both optional query params are valid strings", () => {
       const payload = { code: "AQB123...", state: "xyz987" };
-      expect(spotifyCallbackSchema.safeParse(payload).success).toBe(true);
+      expect(OAuthCallbackSchema.safeParse(payload).success).toBe(true);
     });
 
     test("should pass when query params are completely empty", () => {
-      expect(spotifyCallbackSchema.safeParse({}).success).toBe(true);
+      expect(OAuthCallbackSchema.safeParse({}).success).toBe(true);
     });
   });
 });
@@ -143,13 +149,6 @@ describe("History Schemas", () => {
       expect(uploadHistorySchema.safeParse(payload).success).toBe(true);
     });
 
-    test("should fail if the platform provided is unsupported", () => {
-      const validFile = createMockFile("history.zip", 1024, "application/zip");
-      const payload = { platform: "not_a_platform", file: validFile };
-
-      expect(uploadHistorySchema.safeParse(payload).success).toBe(false);
-    });
-
     test("should fail if file size is 0 bytes", () => {
       const emptyFile = createMockFile("history.zip", 0, "application/zip");
       const payload = { platform: "apple_music", file: emptyFile };
@@ -157,7 +156,7 @@ describe("History Schemas", () => {
       const result = uploadHistorySchema.safeParse(payload);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0]!.message).toBe("File cannot be empty");
+        expect(result.error.issues[0]!.message).toBe("File is empty");
       }
     });
 
@@ -172,7 +171,7 @@ describe("History Schemas", () => {
       const result = uploadHistorySchema.safeParse(payload);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0]!.message).toBe("File must be under 50mb");
+        expect(result.error.issues[0]!.message).toBe("File too large");
       }
     });
 
@@ -203,32 +202,25 @@ describe("History Schemas", () => {
 });
 
 describe("Exclusion Schemas", () => {
-  describe("createExclusionSchema", () => {
+  describe("exclusionParamsSchema", () => {
     test("should pass for a valid artist filtering scope", () => {
       const payload = { type: "artist", targetId: "4gzpz0Cg6wGB98gXz6S79A" };
-      expect(createExclusionSchema.safeParse(payload).success).toBe(true);
+      expect(exclusionParamsSchema.safeParse(payload).success).toBe(true);
     });
 
     test("should pass for a valid track filtering scope", () => {
       const payload = { type: "track", targetId: "12345" };
-      expect(createExclusionSchema.safeParse(payload).success).toBe(true);
+      expect(exclusionParamsSchema.safeParse(payload).success).toBe(true);
     });
 
     test("should fail if type is neither artist nor track", () => {
       const payload = { type: "album", targetId: "123" };
-      expect(createExclusionSchema.safeParse(payload).success).toBe(false);
+      expect(exclusionParamsSchema.safeParse(payload).success).toBe(false);
     });
 
     test("should fail if targetId is an empty string", () => {
       const payload = { type: "artist", targetId: "" };
-      expect(createExclusionSchema.safeParse(payload).success).toBe(false);
-    });
-  });
-
-  describe("deleteExclusionSchema", () => {
-    test("should correctly match createExclusionSchema structural logic constraints", () => {
-      const payload = { type: "track", targetId: "54321" };
-      expect(deleteExclusionSchema.safeParse(payload).success).toBe(true);
+      expect(exclusionParamsSchema.safeParse(payload).success).toBe(false);
     });
   });
 });
