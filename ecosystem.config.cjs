@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "api",
-      script: "./dist/app.js",
+      script: "./dist/server.js",
       interpreter: "bun",
     },
     {

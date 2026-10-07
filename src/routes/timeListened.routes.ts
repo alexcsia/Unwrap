@@ -1,8 +1,8 @@
 import express from "express";
-import { timeListenedController } from "@/controllers/time-listened/time-listened";
+import { timeListenedController } from "@/controllers/analytics/time-listened.controller";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
-import { validateBody } from "@/middleware/validateBody.middleware";
+import { validateRequest } from "@/middleware/validateRequest.middleware";
 import { timeListenedSchema } from "@/schemas";
 
 const router = express.Router();
@@ -11,7 +11,7 @@ router.use(generalLimiter);
 
 router.get(
   "/",
-  validateBody(timeListenedSchema),
+  validateRequest(timeListenedSchema, "body"),
   checkAuth,
   timeListenedController,
 );

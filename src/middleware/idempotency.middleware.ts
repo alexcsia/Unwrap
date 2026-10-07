@@ -1,5 +1,5 @@
 import { ApiError } from "@/errors/ApiError";
-import { IdempotencyRepository } from "@/idempotency-repository";
+import { IdempotencyRepository } from "@/idempotencyRepository";
 import type { Request, Response, NextFunction } from "express";
 
 const KEY_REGEX = /^[a-zA-Z0-9\-_]{8,128}$/;

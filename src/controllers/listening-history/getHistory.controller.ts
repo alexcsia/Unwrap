@@ -1,5 +1,5 @@
 import { ApiError } from "@/errors/ApiError";
-import { getHistoryService } from "@/services/listening-history/getHistory.service";
+import { getHistoryService } from "@/services/listeningHistory/getHistory.service";
 import type { Request, Response } from "express";
 
 /**

@@ -1,15 +1,19 @@
 import express from "express";
-import { createUserController } from "@/controllers/user/create";
+import { createUserController } from "@/controllers/user/create.controller";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
-import { deleteUserController } from "@/controllers/user/delete";
+import { deleteUserController } from "@/controllers/user/delete.controller";
 import { checkAuth } from "@/middleware/auth.middleware";
-import { validateBody } from "@/middleware/validateBody.middleware";
+import { validateRequest } from "@/middleware/validateRequest.middleware";
 import { createUserSchema } from "@/schemas/user.schema";
 const router = express.Router();
 
 router.use(generalLimiter);
 
-router.post("/register", validateBody(createUserSchema), createUserController);
+router.post(
+  "/register",
+  validateRequest(createUserSchema, "body"),
+  createUserController,
+);
 router.delete("/delete", generalLimiter, checkAuth, deleteUserController);
 
 export default router;

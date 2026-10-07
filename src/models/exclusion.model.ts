@@ -11,7 +11,6 @@ export const addExclusion = async (
   },
 ) => {
   const { type, targetId, name, artistName, albumName } = data;
-  console.log("type in model:", type, targetId, name, albumName, artistName);
   const exclusion = await prisma.exclusion.upsert({
     where: {
       userId_type_targetId: { userId, type, targetId },
@@ -46,3 +45,29 @@ export const getExclusionsByUserId = async (userId: string) => {
     orderBy: { excludedAt: "desc" },
   });
 };
+
+export const findArtistWithUserTracks = (artistId: string, userId: string) =>
+  prisma.artist.findUnique({
+    where: { id: artistId },
+    include: {
+      tracks: {
+        where: { listeningHistory: { some: { userId } } },
+        take: 1,
+      },
+    },
+  });
+
+export const findTrackWithUserArtists = (trackId: string, userId: string) =>
+  prisma.track.findUnique({
+    where: { id: trackId },
+    include: {
+      artists: { select: { name: true } },
+      listeningHistory: { where: { userId }, take: 1 },
+    },
+  });
+
+export const findExclusionKeysByUserId = (userId: string) =>
+  prisma.exclusion.findMany({
+    where: { userId },
+    select: { type: true, targetId: true },
+  });

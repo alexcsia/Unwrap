@@ -15,7 +15,7 @@
     "seed": "bun prisma/seed.ts"
   },
   "scripts": {
-    "dev": "bun run --watch src/app.ts",
+    "dev": "bun run --watch src/server.ts",
     "dev:worker": "bun run --watch src/workers/index.ts",
     "build": "cross-env NODE_ENV=production bun build src/app.ts --outdir dist --target node && cross-env NODE_ENV=production bun build src/workers/index.ts --outdir dist/workers --target node",
     "start": "bunx pm2 start ecosystem.config.cjs --no-daemon",
@@ -26,6 +26,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@mermaid-js/mermaid-cli": "^11.12.0",
     "@prisma/client": "^6.5.0",
     "@spotify/web-api-ts-sdk": "^1.2.0",
@@ -35,6 +36,7 @@
     "@types/express": "^5.0.1",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.13.14",
+    "@types/swagger-ui-express": "^4.1.8",
     "adm-zip": "^0.5.16",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.73.1",
@@ -51,6 +53,7 @@
     "pm2": "^6.0.14",
     "prisma": "^6.5.0",
     "supertest": "^7.2.2",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^4.3.6"
   }
 }
