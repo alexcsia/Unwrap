@@ -1,15 +1,16 @@
 import { fetchRecentTracks } from "@/platforms/spotify/utils";
 import { redisCache } from "@/lib/redis";
 import { findOrCreateArtist } from "@/models/artist.model";
-import {
-  connectArtistsAndTrack,
-  findOrCreateTrack,
-} from "@/models/track.model";
+import { connectArtistsAndTrack } from "@/models/track.model";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
 import prisma from "@/utils/prisma.util";
 import type { SpotifyConnection } from "@/models/connectedPlatforms/types";
-
-const CURSOR_TTL = 7 * 24 * 60 * 60; // 7 days
+import { CURSOR_TTL } from "./processPlatformPolling";
+import pLimit from "p-limit";
+import {
+  findOrCreateTrackByIdentifiers,
+  findOrCreateArtistByIdentifiers,
+} from "./lastfmPoller";
 
 export type SpotifyPollerDeps = {
   fetchRecentTracks: typeof fetchRecentTracks;
@@ -18,7 +19,7 @@ export type SpotifyPollerDeps = {
     get: typeof redisCache.get;
     del: typeof redisCache.del;
   };
-  findOrCreateTrack: typeof findOrCreateTrack;
+  // findOrCreateTrack: typeof findOrCreateTrack;
   findOrCreateArtist: typeof findOrCreateArtist;
   connectArtistsAndTrack: typeof connectArtistsAndTrack;
   saveListeningHistory: typeof saveListeningHistory;
@@ -28,16 +29,18 @@ export type SpotifyPollerDeps = {
 const defaultPollerDeps: SpotifyPollerDeps = {
   fetchRecentTracks: fetchRecentTracks,
   cache: {
-    set: redisCache.set,
-    get: redisCache.get,
-    del: redisCache.del,
+    set: redisCache.set.bind(redisCache),
+    get: redisCache.get.bind(redisCache),
+    del: redisCache.del.bind(redisCache),
   },
-  findOrCreateTrack: findOrCreateTrack,
+  // findOrCreateTrack: findOrCreateTrack,
   findOrCreateArtist: findOrCreateArtist,
   connectArtistsAndTrack: connectArtistsAndTrack,
   saveListeningHistory: saveListeningHistory,
   transaction: (fn) => prisma.$transaction(fn) as any,
 };
+
+// fix locking logic race condition
 
 export const createSpotifyPoller = (deps = defaultPollerDeps) =>
   async function spotifyPoller(connection: SpotifyConnection) {
@@ -62,36 +65,56 @@ export const createSpotifyPoller = (deps = defaultPollerDeps) =>
         return;
       }
 
-      await Promise.all(
-        tracks.map(async (entry) => {
-          return deps.transaction(async () => {
-            const savedTrack = await deps.findOrCreateTrack(
-              entry,
-              entry.platformName,
-            );
+      const limit = pLimit(5);
 
-            if (!savedTrack) {
-              throw new Error(
-                `Failed to find or create track: ${entry.trackName}`,
+      await Promise.all(
+        tracks.map((entry) =>
+          limit(() =>
+            deps.transaction(async () => {
+              const trackIdentifiers = entry.isrc
+                ? [{ type: "ISRC" as const, value: entry.isrc }]
+                : [];
+              const savedTrack = await findOrCreateTrackByIdentifiers({
+                trackName: entry.trackName,
+                albumName: entry.albumName,
+                durationMs: entry.durationMs ?? null,
+                platformName: "spotify",
+                platformTrackId: entry.platformTrackId,
+                trackIdentifiers,
+              });
+
+              if (!savedTrack) {
+                throw new Error(
+                  `Failed to find or create track: ${entry.trackName}`,
+                );
+              }
+
+              const artistIdentifiers = entry.isrc
+                ? [{ type: "ISRC" as const, value: entry.isrc }]
+                : [];
+
+              const savedArtists = await findOrCreateArtistByIdentifiers({
+                artists: entry.artists.map((a) => ({
+                  artistName: a.name,
+                  platformArtistId: a.platformId,
+                  platformName: "spotify",
+                  artistIdentifiers: [],
+                })),
+              });
+              await deps.connectArtistsAndTrack(savedTrack, savedArtists);
+              await deps.saveListeningHistory(
+                {
+                  platformName: entry.platformName,
+                  playedAt: entry.playedAt,
+                  source: entry.source,
+                  uploadedAt: entry.uploadedAt,
+                },
+                savedTrack.id,
+                connection.userId,
               );
-            }
-            const savedArtists = await deps.findOrCreateArtist(
-              entry.artists,
-              entry.platformName,
-            );
-            await deps.connectArtistsAndTrack(savedTrack, savedArtists);
-            await deps.saveListeningHistory(
-              {
-                platformName: entry.platformName,
-                playedAt: entry.playedAt,
-                source: entry.source,
-                uploadedAt: entry.uploadedAt,
-              },
-              savedTrack.id,
-              connection.userId,
-            );
-          });
-        }),
+            }),
+          ),
+        ),
       );
 
       const latestPlayedAt = tracks[0]?.playedAt;

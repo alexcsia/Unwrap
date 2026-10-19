@@ -6,23 +6,36 @@ import type { pollerData } from "../types";
 import { SpotifyRateLimitError } from "@/errors/spotifyRateLimitError";
 import type { WorkerUtils } from "../shared";
 
+export const CURSOR_TTL = 7 * 24 * 60 * 60; // 7 days
+
 export type PlatformPollingDeps = {
   utils: WorkerUtils;
   getPlatformAdapter: typeof defaultGetPlatformAdapter;
   getPlatformConnection: typeof defaultGetPlatformConnection;
 };
 
-const defaultDeps: PlatformPollingDeps = {
-  utils: workerUtils,
-  getPlatformAdapter: defaultGetPlatformAdapter,
-  getPlatformConnection: defaultGetPlatformConnection,
-};
-
 export const createPlatformPollingProcessor = (
-  deps: PlatformPollingDeps = defaultDeps,
+  overrides: Partial<PlatformPollingDeps> = {},
 ) => {
   return async (job: Job<pollerData>) => {
+    const deps: PlatformPollingDeps = {
+      utils: overrides.utils ?? workerUtils,
+      getPlatformConnection:
+        overrides.getPlatformConnection ?? defaultGetPlatformConnection,
+      getPlatformAdapter:
+        overrides.getPlatformAdapter ?? defaultGetPlatformAdapter,
+    };
+    console.log({
+      jobId: job.id,
+      name: job.name,
+      attemptsMade: job.attemptsMade,
+      userId: job.data.userId,
+      timestamp: new Date().toISOString(),
+    });
+
     const { userId, platform } = job.data;
+
+    console.log("reached processor", userId, platform);
 
     if (await deps.utils.rateLimits.checkRateLimited(job)) {
       return;

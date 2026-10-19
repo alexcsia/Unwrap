@@ -26,7 +26,7 @@ const spotifyPoller = createSpotifyPoller({
     get: redisGet as any,
     del: redisDel as any,
   },
-  findOrCreateTrack: findOrCreateTrack as any,
+  // findOrCreateTrack: findOrCreateTrack as any,
   findOrCreateArtist: findOrCreateArtist as any,
   connectArtistsAndTrack: connectArtistsAndTrack as any,
   saveListeningHistory: saveListeningHistory as any,

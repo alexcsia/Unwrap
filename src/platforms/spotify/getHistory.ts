@@ -29,23 +29,16 @@ export const createSpotifyGetHistoryHandler = (
     const userSpotify = await getPlatformConnection(userId, "spotify");
     const history = await utils.fetchRecentTracks(userSpotify);
 
-    const results: SavedEntry[] = [];
+    const persisted = await Promise.all(
+      history.map((item) =>
+        persistHistoryItem(item, item.platformName, userSpotify.userId),
+      ),
+    );
 
-    for (const item of history) {
-      const entry = await persistHistoryItem(
-        item,
-        item.platformName,
-        userSpotify.userId,
-      );
-
-      if (
-        entry.savedArtistEntry &&
-        entry.savedTrackEntry &&
-        entry.savedLHEntry
-      ) {
-        results.push(entry);
-      }
-    }
+    const results = persisted.filter(
+      (entry) =>
+        entry.savedArtistEntry && entry.savedTrackEntry && entry.savedLHEntry,
+    );
 
     console.log(`Saved ${results.length} new entries to the database.`);
 
