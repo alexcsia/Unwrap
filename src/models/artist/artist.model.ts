@@ -1,12 +1,6 @@
 import type { Artist } from "@prisma/client";
 import prisma from "@/utils/prisma.util";
-
-type ArtistInput = {
-  name: string;
-  platformId: string;
-  genres?: string[];
-  imageUrl?: string;
-};
+import type { ArtistInput, FindTopArtistsParams, TopArtistRow } from "./types";
 
 export const findOrCreateArtist = async (
   artists: ArtistInput[],
@@ -50,23 +44,6 @@ export const findOrCreateArtist = async (
     }
     throw error;
   }
-};
-
-export type TopArtistRow = {
-  artistId: string;
-  artistName: string;
-  imageUrl: string | null;
-  playCount: bigint;
-  totalDurationMs: bigint;
-  totalCount: bigint;
-};
-
-export type FindTopArtistsParams = {
-  userId: string;
-  start: Date;
-  end: Date;
-  limit: number;
-  offset: number;
 };
 
 export const findTopArtists = ({
