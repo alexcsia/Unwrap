@@ -16,3 +16,23 @@ export type SavedTrack = {
   duration: number;
   artistsName: string[];
 };
+
+export type TopTrackRow = {
+  trackId: string;
+  trackName: string;
+  albumName: string;
+  playCount: bigint;
+  durationMs: bigint;
+  totalCount: bigint;
+  artistNames: string;
+};
+
+export type FindTopTracksParams = {
+  userId: string;
+  start: Date;
+  end: Date;
+  excludedTrackIds: string[];
+  excludedArtistIds: string[];
+  limit: number;
+  offset: number;
+};

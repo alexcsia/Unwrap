@@ -14,7 +14,30 @@ import type {
 } from "./types";
 import type { FindOrCreateArtistInput } from "@/models/artist";
 import type { FindOrCreateTrackInput, SavedTrack } from "@/models/track/types";
-import { toLastfmTrack, needsEnrichment } from "./utils";
+import { toLastfmTrack } from "./utils";
+import {
+  createArtistIdentifiers,
+  findArtistIdentifier,
+} from "@/models/artistIdentifier.model";
+import { findFirstArtist, createArtist } from "@/models/artist";
+import {
+  createPlatformArtist,
+  findPlatformArtist,
+} from "@/models/platformArtist.model";
+import {
+  findTrackIdentifiers,
+  createTrackIdentifiers,
+  needsEnrichment,
+} from "@/models/trackIdentifier.model";
+import {
+  findUniquePlatformTrack,
+  createPlatformTrack,
+} from "@/models/platformTrack.model";
+import {
+  findFirstTrack,
+  createTrack,
+  updateTrackArtists,
+} from "@/models/track";
 
 const defaultPollerDeps: lastfmPollerDeps = {
   cache: {
@@ -181,14 +204,7 @@ export const upsertTrackWithHistory = async (
     ],
   });
 
-  await prisma.track.update({
-    where: { id: savedTrack.id },
-    data: {
-      artists: {
-        set: savedArtists.map((a) => ({ id: a.id })),
-      },
-    },
-  });
+  await updateTrackArtists(savedTrack, savedArtists);
 
   await saveListeningHistory(
     {
@@ -213,15 +229,7 @@ export const upsertTrackWithHistory = async (
 export const findOrCreateTrackByIdentifiers = async (
   input: FindOrCreateTrackInput,
 ): Promise<Track> => {
-  const existingPlatformTrack = await prisma.platformTrack.findUnique({
-    where: {
-      platformName_platformTrackId: {
-        platformName: input.platformName,
-        platformTrackId: input.platformTrackId,
-      },
-    },
-    include: { track: true },
-  });
+  const existingPlatformTrack = await findUniquePlatformTrack(input);
 
   if (existingPlatformTrack) {
     await attachMissingIdentifiers(
@@ -233,19 +241,9 @@ export const findOrCreateTrackByIdentifiers = async (
   }
 
   if (input.trackIdentifiers.length > 0) {
-    const matched = await prisma.track.findFirst({
-      where: {
-        identifiers: { some: { OR: input.trackIdentifiers } },
-      },
-    });
+    const matched = await findFirstTrack(input);
     if (matched) {
-      await prisma.platformTrack.create({
-        data: {
-          trackId: matched.id,
-          platformName: input.platformName,
-          platformTrackId: input.platformTrackId,
-        },
-      });
+      await createPlatformTrack(matched, input);
 
       await attachMissingIdentifiers(
         matched.id,
@@ -255,27 +253,7 @@ export const findOrCreateTrackByIdentifiers = async (
     }
   }
   try {
-    const savedTrack = await prisma.track.create({
-      data: {
-        trackName: input.trackName,
-        albumName: input.albumName,
-        durationMs: input.durationMs!,
-        metadata: {},
-        platformTracks: {
-          create: {
-            platformName: input.platformName,
-            platformTrackId: input.platformTrackId,
-          },
-        },
-        identifiers: {
-          create: input.trackIdentifiers.map((i) => ({
-            type: i.type,
-            value: i.value,
-            source: input.platformName,
-          })),
-        },
-      },
-    });
+    const savedTrack = await createTrack(input);
 
     return savedTrack;
   } catch (error: any) {
@@ -291,28 +269,21 @@ export const attachMissingIdentifiers = async (
   identifiers: IdentifierInput[],
   platformName: string,
 ): Promise<void> => {
-  const trackIdentifiers = await prisma.trackIdentifier.findMany({
-    where: {
-      trackId,
-      OR: identifiers,
-    },
-    select: { type: true, value: true },
-  });
+  if (identifiers.length === 0) return;
 
-  const missing = trackIdentifiers.filter((i) =>
-    identifiers.some((e) => e.type === i.type && e.value === i.value),
+  const trackIdentifiers = await findTrackIdentifiers(trackId, identifiers);
+
+  const existingKeys = new Set(
+    trackIdentifiers.map((e) => `${e.type}:${e.value}`),
   );
+
+  const missing = identifiers.filter(
+    (i) => !existingKeys.has(`${i.type}:${i.value}`),
+  );
+
   if (missing.length === 0) return;
 
-  await prisma.trackIdentifier.createMany({
-    data: missing.map((i) => ({
-      trackId,
-      type: i.type,
-      value: i.value,
-      source: platformName,
-    })),
-    skipDuplicates: true,
-  });
+  await createTrackIdentifiers(missing, trackId, platformName);
 };
 
 export const findOrCreateArtistByIdentifiers = async (input: {
@@ -321,15 +292,7 @@ export const findOrCreateArtistByIdentifiers = async (input: {
   const results: Artist[] = [];
 
   for (const a of input.artists) {
-    const existingPlatformArtist = await prisma.platformArtist.findUnique({
-      where: {
-        platformArtistId_platformName: {
-          platformArtistId: a.platformArtistId,
-          platformName: a.platformName,
-        },
-      },
-      include: { artist: true },
-    });
+    const existingPlatformArtist = await findPlatformArtist(a);
 
     if (existingPlatformArtist) {
       await attachMissingArtistIdentifiers(
@@ -342,20 +305,10 @@ export const findOrCreateArtistByIdentifiers = async (input: {
     }
 
     if (a.artistIdentifiers.length > 0) {
-      const matched = await prisma.artist.findFirst({
-        where: {
-          identifiers: { some: { OR: a.artistIdentifiers } },
-        },
-      });
+      const matched = await findFirstArtist(a);
 
       if (matched) {
-        await prisma.platformArtist.create({
-          data: {
-            artistId: matched.id,
-            platformName: a.platformName,
-            platformArtistId: a.platformArtistId,
-          },
-        });
+        await createPlatformArtist(matched, a);
         await attachMissingArtistIdentifiers(
           matched.id,
           a.artistIdentifiers,
@@ -367,27 +320,7 @@ export const findOrCreateArtistByIdentifiers = async (input: {
     }
 
     try {
-      const created = await prisma.artist.create({
-        data: {
-          name: a.artistName,
-          platformArtists: {
-            create: {
-              platformName: a.platformName,
-              platformArtistId: a.platformArtistId,
-            },
-          },
-          identifiers:
-            a.artistIdentifiers.length > 0
-              ? {
-                  create: a.artistIdentifiers.map((i) => ({
-                    type: i.type,
-                    value: i.value,
-                    source: a.platformName,
-                  })),
-                }
-              : undefined,
-        },
-      });
+      const created = await createArtist(a);
       results.push(created);
     } catch (error: any) {
       if (error.code === "P2002") {
@@ -413,23 +346,12 @@ const attachMissingArtistIdentifiers = async (
 ): Promise<void> => {
   if (identifiers.length === 0) return;
 
-  const existing = await prisma.artistIdentifier.findMany({
-    where: { artistId, OR: identifiers },
-    select: { type: true, value: true },
-  });
+  const existing = await findArtistIdentifier(artistId, identifiers);
 
   const have = new Set(existing.map((e) => `${e.type}:${e.value}`));
   const missing = identifiers.filter((i) => !have.has(`${i.type}:${i.value}`));
 
   if (missing.length === 0) return;
 
-  await prisma.artistIdentifier.createMany({
-    data: missing.map((i) => ({
-      artistId,
-      type: i.type,
-      value: i.value,
-      source,
-    })),
-    skipDuplicates: true,
-  });
+  await createArtistIdentifiers(missing, artistId, source);
 };
