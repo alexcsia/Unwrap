@@ -18,12 +18,14 @@ export class LastfmRateLimitError extends UnrecoverableError {
   }
 }
 
+const processor = lastfmProcessor;
+
 export const lastfmWorker = new Worker(
   lastfmQueue.name,
 
   async (job) => {
     try {
-      return lastfmProcessor;
+      return processor(job);
     } catch (err) {
       if (err instanceof LastfmRateLimitError) {
         await lastfmQueue.rateLimit(err.retryAfterMs);

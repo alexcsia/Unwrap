@@ -3,12 +3,14 @@ import { redisConnection } from "@/lib/redis";
 import { musicBrainzQueue } from "@/lib/queue";
 import { MBProcessor, MusicBrainzRateLimitError } from "./processor";
 
+const processor = MBProcessor();
+
 export const musicBrainzWorker = new Worker(
   musicBrainzQueue.name,
 
   async (job) => {
     try {
-      return await MBProcessor();
+      return processor(job);
     } catch (err) {
       if (err instanceof MusicBrainzRateLimitError) {
         await musicBrainzQueue.rateLimit(err.retryAfterMs);
