@@ -1,6 +1,7 @@
 import { musicBrainzQueue } from "@/lib/queue";
 import type { MusicBrainzEnrichmentDeps, TrackToEnrich } from "./processor";
 import { mbFetch } from "./processor";
+import { findTrack } from "@/models/track";
 
 export type RecordingCandidate = {
   id: string;
@@ -17,27 +18,43 @@ const MIN_FUZZY_SCORE = 90;
 const DURATION_TOLERANCE_MS = 5_000;
 
 export const fuzzySearchHandler = async (
-  track: TrackToEnrich,
+  trackId: string,
   deps: MusicBrainzEnrichmentDeps,
 ) => {
-  console.log("fuzzy search", track);
-  const searchData = await trackNameFuzzySearch(track, deps);
-  const best = pickBestMatch(searchData?.recordings, track);
+  const track = await findTrack(trackId);
+  if (!track) return;
+
+  const existingMbid =
+    track.identifiers.find((i) => i.type === "MBID")?.value ?? null;
+  if (existingMbid) {
+    await musicBrainzQueue.add(
+      "fetch-isrcs",
+      { trackId: track.id, mbid: existingMbid },
+      { jobId: `isrc-${existingMbid}` },
+    );
+    return;
+  }
+
+  const trackToEnrich: TrackToEnrich = {
+    id: track.id,
+    mbid: null,
+    trackName: track.trackName,
+    duration: track.durationMs,
+    artistsName: track.artists.map((a) => a.name),
+  };
+
+  const searchData = await trackNameFuzzySearch(trackToEnrich, deps);
+  const best = pickBestMatch(searchData?.recordings, trackToEnrich);
 
   if (!best) {
     await deps.markSearchFailed(track.id);
     return;
   }
 
-  const enriched: TrackToEnrich = {
-    ...track,
-    mbid: best.mbid,
-  };
-
   await musicBrainzQueue.add(
     "fetch-isrcs",
-    { track: enriched },
-    { jobId: `isrc-${track.mbid ?? track.id}` },
+    { trackId: track.id, mbid: best.mbid },
+    { jobId: `isrc-${best.mbid}` },
   );
 };
 

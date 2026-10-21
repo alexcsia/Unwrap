@@ -1,6 +1,5 @@
 import { Queue } from "bullmq";
 import { redisConnection } from "./redis";
-import type { TrackToEnrich } from "@/workers/musicBrainzEnrichment/processor";
 
 export const historyQueue = new Queue("history-ingestion", {
   connection: redisConnection,
@@ -13,7 +12,8 @@ export const pollQueue = new Queue("platform-poll", {
 });
 
 export type MusicBrainzJobData = {
-  track: TrackToEnrich;
+  trackId: string;
+  mbid?: string;
 };
 
 export const musicBrainzQueue = new Queue<MusicBrainzJobData>("musicbrainz", {
@@ -27,4 +27,8 @@ export const musicBrainzQueue = new Queue<MusicBrainzJobData>("musicbrainz", {
     removeOnComplete: { count: 100 },
     removeOnFail: { count: 500 },
   },
+});
+
+export const lastfmQueue = new Queue("lastfm", {
+  connection: redisConnection,
 });

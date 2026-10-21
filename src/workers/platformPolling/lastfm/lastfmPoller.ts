@@ -3,15 +3,9 @@ import type { LastfmConnection } from "@/models/connectedPlatforms/types";
 import { CURSOR_TTL } from "../processPlatformPolling";
 import prisma from "@/utils/prisma.util";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
-import { musicBrainzQueue } from "@/lib/queue";
+import { lastfmQueue, musicBrainzQueue } from "@/lib/queue";
 import type { Artist, Track } from "@prisma/client";
-import type {
-  lastfmPollerDeps,
-  lastfmResponse,
-  LastFmTrack,
-  lastfmEnrichmentRes,
-  IdentifierInput,
-} from "./types";
+import type { lastfmPollerDeps, LastFmTrack, IdentifierInput } from "./types";
 import type { FindOrCreateArtistInput } from "@/models/artist";
 import type { FindOrCreateTrackInput, SavedTrack } from "@/models/track/types";
 import { toLastfmTrack } from "./utils";
@@ -38,6 +32,7 @@ import {
   createTrack,
   updateTrackArtists,
 } from "@/models/track";
+import { getUserRecentTracks } from "@/platforms/lastfm/getUserRecent";
 
 const defaultPollerDeps: lastfmPollerDeps = {
   cache: {
@@ -50,56 +45,7 @@ const defaultPollerDeps: lastfmPollerDeps = {
   transaction: (fn) => prisma.$transaction(fn) as any,
 };
 
-const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
-
-export const getUserRecentTracks = async (
-  username: string,
-  cursor: string | null,
-): Promise<lastfmResponse> => {
-  const res = await fetch(
-    `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${username}&api_key=${LASTFM_API_KEY}&from=${cursor}&format=json`,
-
-    {
-      headers: {
-        "User-Agent": "UnwrapApp/1.0.0 (alexiutttt@gmail.com)",
-        Accept: "application/json",
-      },
-    },
-  );
-  const data = await res.json();
-  return data;
-};
-
 //abstract away into a new worker
-export const getLastfmTrackDuration = async (
-  track: LastFmTrack,
-): Promise<lastfmEnrichmentRes> => {
-  // cache the duration per track
-
-  if (track.trackMbid) {
-    const res =
-      await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${LASTFM_API_KEY}
-      &mbid=${track.trackMbid}&format=json`);
-
-    const data = await res.json();
-
-    if (data.track.duration === 0)
-      console.warn("duration data is ", data.track.duration);
-    console.log("duration data", data.track.duration);
-    return data;
-  } else {
-    const res =
-      await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${LASTFM_API_KEY}
-      &artist=${track.artistName}&track=${track.trackName}&format=json`);
-
-    const data = await res.json();
-
-    if (data.track.duration === 0)
-      console.warn("duration data is ", data.track.duration);
-    console.log("duration data", data.track.duration);
-    return data;
-  }
-};
 
 export const createLastfmPoller = (
   deps: lastfmPollerDeps = defaultPollerDeps,
@@ -120,36 +66,31 @@ export const createLastfmPoller = (
         (t: LastFmTrack): t is LastFmTrack => t !== null,
       );
       for (let track of tracks) {
-        // check if the mbid of each track is cached
-        // if not cached, check if it exists in the database and retrieve the isrc linked to it (if it exists)
-        if (track.durationMs === 0 || track.durationMs === null) {
-          const enrichedDurationTrack = await getLastfmTrackDuration(track);
-          track.durationMs =
-            Number(enrichedDurationTrack.track.duration) ?? null;
-          //save to db?
-        }
-
-        //if adding duration before saving, i cant use the mbid even if i have it in the db
-
         const saved = await upsertTrackWithHistory(track, connection.userId);
 
-        //if i add duration after, thats an additional db query after saving for all tracks
         try {
           if (await needsEnrichment(saved.id)) {
             if (saved.mbid) {
               console.log("enqueuing for isrcs");
               await musicBrainzQueue.add(
                 "fetch-isrcs",
-                { track: saved },
+                { trackId: saved.id, mbid: saved.mbid },
                 { jobId: `isrc-${saved.mbid ?? saved.id}` },
               );
-            } else {
+            } else if (saved.duration !== null && saved.duration !== 0) {
               console.log("enqueuing for fuzzy");
 
               await musicBrainzQueue.add(`fuzzy-search`, {
-                track: saved,
+                trackId: saved.id,
               });
             }
+          } else {
+            console.log("enqueueing for duration");
+            await lastfmQueue.add(
+              "fetch-duration",
+              { trackId: saved.id },
+              { jobId: `duration-${saved.id}` },
+            );
           }
         } catch (err: any) {
           console.log(

@@ -17,6 +17,9 @@ async function main() {
     await import("./historyIngestion/historyIngestion.worker");
   const { deleteUserWorker } = await import("./userDeletion/deleteUser.worker");
   const { pollerWorker } = await import("./platformPolling/poller.worker");
+  const { musicBrainzWorker } =
+    await import("./musicBrainzEnrichment/enrichment.worker");
+  const { lastfmWorker } = await import("./lastfmEnrichment/enrichment.worker");
 
   console.log("[worker] all workers started");
 
@@ -27,6 +30,8 @@ async function main() {
         historyWorker.close(),
         deleteUserWorker.close(),
         pollerWorker.close(),
+        musicBrainzWorker.close(),
+        lastfmWorker.close(),
       ]);
       await Promise.all([redisConnection.quit(), redisCache.quit()]);
     } catch (e) {

@@ -9,29 +9,31 @@ export const ISRC_CACHE_TTL_SEC = 30 * 24 * 60 * 60; // 30 days
 export const NEGATIVE_CACHE_TTL_SEC = 7 * 24 * 60 * 60; // 7 days
 
 export const fetchTrackISRCs = async (
-  track: TrackToEnrich,
+  trackId: string,
+  mbid: string,
   deps: MusicBrainzEnrichmentDeps,
 ) => {
-  console.log("isrc search", track);
-
-  const cached = await deps.cache.get(isrcCacheKey(track.mbid!));
+  const cached = await deps.cache.get(isrcCacheKey(mbid));
 
   if (cached) {
     const isrcs = JSON.parse(cached) as unknown as string[];
-    await deps.saveIdentifiers(track.id, track.mbid!, isrcs);
+    await deps.saveIdentifiers(trackId, mbid, isrcs);
     return;
   }
 
   try {
     const recording = await mbFetch(
-      `${deps.MUSICBRAINZ_BASE}/recording/${track.mbid}?inc=isrcs&fmt=json`,
+      `${deps.MUSICBRAINZ_BASE}/recording/${mbid}?inc=isrcs&fmt=json`,
       deps,
     );
 
     console.log("found a track:", recording);
-    if (recording?.length && (!track.duration || track.duration === 0)) {
-      await prisma.track.update({
-        where: { id: track.id },
+    if (recording?.length) {
+      await prisma.track.updateMany({
+        where: {
+          id: trackId,
+          OR: [{ durationMs: undefined }, { durationMs: 0 }],
+        },
         data: { durationMs: recording.length },
       });
     }
@@ -40,21 +42,14 @@ export const fetchTrackISRCs = async (
       ? recording.isrcs
       : [];
 
-    console.log(`isrcs found for ${track.trackName}: ${isrcs}`);
-
-    await deps.saveIdentifiers(track.id, track.mbid!, isrcs);
+    await deps.saveIdentifiers(trackId, mbid, isrcs);
 
     const ttl = isrcs.length > 0 ? ISRC_CACHE_TTL_SEC : NEGATIVE_CACHE_TTL_SEC;
-    await deps.cache.set(
-      isrcCacheKey(track.mbid!),
-      JSON.stringify(isrcs),
-      "EX",
-      ttl,
-    );
+    await deps.cache.set(isrcCacheKey(mbid), JSON.stringify(isrcs), "EX", ttl);
   } catch (err) {
     if (err instanceof MusicBrainzNotFoundError)
       await deps.cache.set(
-        isrcCacheKey(track.mbid!),
+        isrcCacheKey(mbid),
         JSON.stringify([]),
         "EX",
         NEGATIVE_CACHE_TTL_SEC,

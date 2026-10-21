@@ -57,10 +57,4 @@ export type lastfmEnrichmentRes = {
   };
 };
 
-export interface lastfmResponse {
-  recenttracks: {
-    track: any;
-  };
-}
-
 export type IdentifierInput = { type: "ISRC" | "MBID"; value: string };

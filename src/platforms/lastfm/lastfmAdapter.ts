@@ -1,4 +1,4 @@
-import { lastfmPoller } from "@/workers/platformPolling/lastfmPoller";
+import { lastfmPoller } from "@/workers/platformPolling/lastfm/lastfmPoller";
 import type { PlatformAdapter } from "../types";
 import { handleLastfmCallback, initiateOAuth } from "./auth";
 

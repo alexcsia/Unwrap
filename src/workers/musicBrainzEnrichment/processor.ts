@@ -5,6 +5,7 @@ import { redisCache } from "@/lib/redis";
 import { pickBestMatch } from "./fuzzySearch";
 import prisma from "@/utils/prisma.util";
 import { UnrecoverableError } from "bullmq";
+import type { MusicBrainzJobData } from "@/lib/queue";
 
 export class MusicBrainzNotFoundError extends UnrecoverableError {
   constructor(public readonly url: string) {
@@ -26,10 +27,6 @@ const MUSICBRAINZ_BASE = "https://musicbrainz.org/ws/2";
 
 const ISRC_CACHE_TTL_SEC = 30 * 24 * 60 * 60; // 30 days
 const NEGATIVE_CACHE_TTL_SEC = 7 * 24 * 60 * 60; // 7 days
-
-export type MusicBrainzJobData = {
-  track: TrackToEnrich;
-};
 
 export const saveIdentifiers = async (
   trackId: string,
@@ -109,11 +106,12 @@ export const createProcessor = () => {
   return async (job: Job<MusicBrainzJobData>): Promise<void> => {
     switch (job.name) {
       case "fuzzy-search":
-        await fuzzySearchHandler(job.data.track, mbDependencies);
+        await fuzzySearchHandler(job.data.trackId, mbDependencies);
         return;
 
       case "fetch-isrcs":
-        await fetchTrackISRCs(job.data.track, mbDependencies);
+        if (!job.data.mbid) throw new Error("ISRC fetch job misses mbid");
+        await fetchTrackISRCs(job.data.trackId, job.data.mbid, mbDependencies);
         return;
 
       default:
