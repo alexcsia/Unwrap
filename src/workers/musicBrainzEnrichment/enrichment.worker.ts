@@ -10,7 +10,7 @@ export const musicBrainzWorker = new Worker(
 
   async (job) => {
     try {
-      return processor(job);
+      return await processor(job);
     } catch (err) {
       if (err instanceof MusicBrainzRateLimitError) {
         await musicBrainzQueue.rateLimit(err.retryAfterMs);

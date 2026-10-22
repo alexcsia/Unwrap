@@ -1,5 +1,5 @@
 import type { TrackToEnrich, MusicBrainzEnrichmentDeps } from "./processor";
-
+import { isrcCacheKey } from "../shared/utils";
 import { mbFetch, MusicBrainzNotFoundError } from "./processor";
 import prisma from "@/utils/prisma.util";
 
@@ -27,7 +27,6 @@ export const fetchTrackISRCs = async (
       deps,
     );
 
-    console.log("found a track:", recording);
     if (recording?.length) {
       await prisma.track.updateMany({
         where: {
@@ -57,5 +56,3 @@ export const fetchTrackISRCs = async (
     throw err;
   }
 };
-
-export const isrcCacheKey = (mbid: string) => `mb:recording:${mbid}:isrcs`;

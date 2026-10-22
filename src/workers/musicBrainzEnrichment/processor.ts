@@ -13,7 +13,7 @@ export class MusicBrainzNotFoundError extends UnrecoverableError {
   }
 }
 
-export class MusicBrainzRateLimitError extends UnrecoverableError {
+export class MusicBrainzRateLimitError extends Error {
   constructor(
     public readonly retryAfterMs: number,
     url: string,
