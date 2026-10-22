@@ -185,3 +185,33 @@ export const updateTrackArtists = async (
     },
   });
 };
+
+export const findTrack = (id: string) =>
+  prisma.track.findUnique({
+    where: { id },
+    include: {
+      artists: true,
+      identifiers: true,
+    },
+  });
+
+export const updateTrackWithDuration = async (
+  trackId: string,
+  seconds: string,
+) => {
+  const track = await prisma.track.update({
+    where: { id: trackId },
+    data: {
+      durationMs: Number(seconds) * 1000,
+    },
+    select: {
+      identifiers: {
+        where: { type: "MBID" },
+        select: { value: true },
+        take: 1,
+      },
+    },
+  });
+
+  return track;
+};

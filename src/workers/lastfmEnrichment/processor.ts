@@ -1,8 +1,7 @@
-import type { LastFmTrack } from "../platformPolling/lastfm/types";
 import { Job } from "bullmq";
 import { redisCache } from "@/lib/redis";
 import { getLastfmTrackDuration } from "./fetchTrackDuration";
-import prisma from "@/utils/prisma.util";
+import { updateTrackWithDuration } from "@/models/track";
 import { needsIdentifierEnrichment } from "@/models/trackIdentifier.model";
 import { musicBrainzQueue } from "@/lib/queue";
 import { findTrack } from "@/models/track";
@@ -69,24 +68,3 @@ export const createLastfmProcessor = (deps = defaultDeps) => {
 };
 
 export const lastfmProcessor = createLastfmProcessor();
-
-export const updateTrackWithDuration = async (
-  trackId: string,
-  seconds: string,
-) => {
-  const track = await prisma.track.update({
-    where: { id: trackId },
-    data: {
-      durationMs: Number(seconds) * 1000,
-    },
-    select: {
-      identifiers: {
-        where: { type: "MBID" },
-        select: { value: true },
-        take: 1,
-      },
-    },
-  });
-
-  return track;
-};
