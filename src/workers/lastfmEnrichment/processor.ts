@@ -3,8 +3,9 @@ import { Job } from "bullmq";
 import { redisCache } from "@/lib/redis";
 import { getLastfmTrackDuration } from "./fetchTrackDuration";
 import prisma from "@/utils/prisma.util";
-import { needsEnrichment } from "@/models/trackIdentifier.model";
+import { needsIdentifierEnrichment } from "@/models/trackIdentifier.model";
 import { musicBrainzQueue } from "@/lib/queue";
+import { findTrack } from "@/models/track";
 const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
 
 if (!LASTFM_API_KEY) {
@@ -31,26 +32,37 @@ const defaultDeps: lastfmEnrichmentDeps = {
 };
 
 export type LastfmJobData = {
-  lastfmTrack: LastFmTrack;
-  savedTrackId: string;
+  trackId: string;
 };
 
 export const createLastfmProcessor = (deps = defaultDeps) => {
   return async (job: Job<LastfmJobData>) => {
-    const { savedTrackId, lastfmTrack } = job.data;
+    const { trackId } = job.data;
 
-    const res = await getLastfmTrackDuration(lastfmTrack, deps);
+    const track = await findTrack(trackId);
+    if (!track) return;
+    const res = await getLastfmTrackDuration(track, deps);
 
     const seconds = res.track.duration;
     if (!seconds) return;
 
-    await updateTrackWithDuration(savedTrackId, res.track.duration);
+    const updated = await updateTrackWithDuration(trackId, res.track.duration);
 
-    if (await needsEnrichment(savedTrackId)) {
+    if (!(await needsIdentifierEnrichment(job.data.trackId))) return;
+
+    const mbid = updated?.identifiers[0]?.value;
+
+    if (mbid) {
+      await musicBrainzQueue.add(
+        "fetch-isrcs",
+        { trackId: trackId, mbid },
+        { jobId: `isrc-${mbid}` },
+      );
+    } else {
       await musicBrainzQueue.add(
         "fuzzy-search",
-        { trackId: savedTrackId },
-        { jobId: `fuzzy-${savedTrackId}` },
+        { trackId: trackId },
+        { jobId: `fuzzy-${trackId}` },
       );
     }
   };
@@ -62,10 +74,19 @@ export const updateTrackWithDuration = async (
   trackId: string,
   seconds: string,
 ) => {
-  await prisma.track.update({
+  const track = await prisma.track.update({
     where: { id: trackId },
     data: {
       durationMs: Number(seconds) * 1000,
     },
+    select: {
+      identifiers: {
+        where: { type: "MBID" },
+        select: { value: true },
+        take: 1,
+      },
+    },
   });
+
+  return track;
 };
