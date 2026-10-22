@@ -1,6 +1,8 @@
 import type { IdentifierInput } from "@/workers/platformPolling/lastfm/types";
 import prisma from "@/utils/prisma.util";
 import type { TrackIdentifier } from "@prisma/client";
+import { checkCachedMbid } from "@/workers/shared/utils";
+
 export const createTrackIdentifiers = async (
   missing: IdentifierInput[],
   trackId: string,
@@ -32,11 +34,20 @@ export const findTrackIdentifiers = async (
   return trackIdentifiers;
 };
 
-export const needsEnrichment = async (trackId: string): Promise<boolean> => {
-  const hasISRC = await prisma.trackIdentifier.findFirst({
-    where: { trackId: trackId, type: "ISRC" },
-    select: { id: true },
+export const needsIdentifierEnrichment = async (
+  trackId: string,
+): Promise<boolean> => {
+  const track = await prisma.track.findUnique({
+    where: { id: trackId },
+    select: { identifiers: { select: { type: true, value: true } } },
   });
 
-  return hasISRC === null;
+  if (!track) return false;
+
+  const mbid = track.identifiers.find((i) => i.type === "MBID")?.value;
+  if (!mbid) return true;
+
+  const cached = await checkCachedMbid(mbid);
+
+  return cached;
 };

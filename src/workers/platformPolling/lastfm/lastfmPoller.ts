@@ -21,7 +21,7 @@ import {
 import {
   findTrackIdentifiers,
   createTrackIdentifiers,
-  needsEnrichment,
+  needsIdentifierEnrichment,
 } from "@/models/trackIdentifier.model";
 import {
   findUniquePlatformTrack,
@@ -45,8 +45,6 @@ const defaultPollerDeps: lastfmPollerDeps = {
   transaction: (fn) => prisma.$transaction(fn) as any,
 };
 
-//abstract away into a new worker
-
 export const createLastfmPoller = (
   deps: lastfmPollerDeps = defaultPollerDeps,
 ) => {
@@ -69,23 +67,26 @@ export const createLastfmPoller = (
         const saved = await upsertTrackWithHistory(track, connection.userId);
 
         try {
-          if (await needsEnrichment(saved.id)) {
-            if (saved.mbid) {
-              console.log("enqueuing for isrcs");
-              await musicBrainzQueue.add(
-                "fetch-isrcs",
-                { trackId: saved.id, mbid: saved.mbid },
-                { jobId: `isrc-${saved.mbid ?? saved.id}` },
-              );
-            } else if (saved.duration !== null && saved.duration !== 0) {
-              console.log("enqueuing for fuzzy");
+          const hasDuration = saved.duration !== 0 && saved.duration != null;
+          const needsId = await needsIdentifierEnrichment(saved.id);
 
-              await musicBrainzQueue.add(`fuzzy-search`, {
-                trackId: saved.id,
-              });
-            }
-          } else {
-            console.log("enqueueing for duration");
+          if (needsId && !hasDuration) {
+            // no mbid, no duration
+            await lastfmQueue.add(
+              "fetch-duration",
+              { trackId: saved.id },
+              { jobId: `duration-${saved.id}` },
+            );
+          } else if (needsId && hasDuration) {
+            // no mbid, has duration
+            await musicBrainzQueue.add(
+              "fuzzy-search",
+              { trackId: saved.id },
+              { jobId: `fuzzy-${saved.id}` },
+            );
+          } else if (!needsId && !hasDuration) {
+            // has mbid, no duration
+
             await lastfmQueue.add(
               "fetch-duration",
               { trackId: saved.id },
