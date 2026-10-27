@@ -57,7 +57,7 @@ export const exchangeSpotifyCode = async (
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "<unreadable>");
+    const body = await response.text().catch((err) => console.log(err));
 
     console.error("[spotify] token exchange failed", {
       status: response.status,
@@ -151,8 +151,7 @@ export const exchangeSpotifyCode = async (
     {
       // repeat: { every: 30 * 60 * 1000 }, //30 min
       repeat: { every: 1 * 60 * 1000 },
-      jobId: `poll:${userId}:spotify`, // deduplicates, safe to call on reconnect
-      delay: Math.floor(Math.random() * 30 * 60 * 1000), // random offset within 30 min window
+      jobId: `poll:${userId}:spotify`,
     },
   );
 
