@@ -22,9 +22,15 @@ async function main() {
   const { lastfmWorker } = await import("./lastfmEnrichment/enrichment.worker");
 
   console.log("[worker] all workers started");
-
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(`[worker] ${signal} received, shutting down`);
+    setTimeout(() => {
+      console.error("[worker] shutdown timed out, forcing exit");
+      process.exit(1);
+    }, 15_000).unref();
     try {
       await Promise.all([
         historyWorker.close(),
