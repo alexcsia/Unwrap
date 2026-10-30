@@ -54,8 +54,8 @@ export const createLastfmPoller = (
         .map((a) => a[0]?.split("/_/")[0])
         .filter((url): url is string => !!url);
 
-      console.log("artists:", artists);
-      console.log("url of artists:", uniqueArtitsUrls);
+      // console.log("artists:", artists);
+      // console.log("url of artists:", uniqueArtitsUrls);
 
       const knownPlatformTracks = await prisma.platformTrack.findMany({
         where: {
@@ -81,7 +81,7 @@ export const createLastfmPoller = (
         },
       });
 
-      console.log("FROM THE DB", knownPlatformArtists);
+      // console.log("FROM THE DB", knownPlatformArtists);
 
       const knownUrlMap = new Map(
         knownPlatformTracks.map((t) => [
@@ -189,6 +189,9 @@ export const batchSaveArtists = async (
     identififerToSave = [];
 
   for (const artist of artists) {
+    // artist:[    t.url,
+    //     t.artistMbid,
+    //     t.artistName, ]
     const existingByUrl = knownArtistUrlMap.get(artist[0]!);
     if (existingByUrl) continue;
 
@@ -288,6 +291,11 @@ export const batchSaveTracks = async (
         });
         isrcJobs.push(existingByUrl.trackId, track.trackMbid);
       }
+      console.log(
+        "saving listening history",
+        new Date(Number(track.playedAt) * 1000),
+        track.trackName,
+      );
 
       listeningHistoryToSave.push({
         userId,
@@ -297,6 +305,10 @@ export const batchSaveTracks = async (
         source: "lastfm",
         uploadedAt: new Date(),
       });
+
+      if (track.durationMs === 0 || track.durationMs === null) {
+        durationJobs.push(existingByUrl.trackId);
+      }
       continue;
     }
 
@@ -310,6 +322,11 @@ export const batchSaveTracks = async (
         });
         idByUrl.set(track.url, existingByMbid);
 
+        console.log(
+          "saving listening history",
+          new Date(Number(track.playedAt) * 1000),
+          track.trackName,
+        );
         listeningHistoryToSave.push({
           userId,
           platformName: "lastfm",
@@ -319,6 +336,9 @@ export const batchSaveTracks = async (
           uploadedAt: new Date(),
         });
         isrcJobs.push(existingByMbid);
+        if (track.durationMs === 0 || track.durationMs === null) {
+          durationJobs.push(existingByMbid);
+        }
         continue;
       }
     }
@@ -361,10 +381,21 @@ export const batchSaveTracks = async (
           source: "lastfm",
         });
         isrcJobs.push(trackId, track.trackMbid);
+        if (track.durationMs === 0 || track.durationMs === null) {
+          durationJobs.push(trackId);
+        }
       } else {
         fuzzyJobs.push(trackId);
+        if (track.durationMs === 0 || track.durationMs === null) {
+          durationJobs.push(trackId);
+        }
       }
     }
+    console.log(
+      "saving listening history",
+      new Date(Number(track.playedAt) * 1000),
+      track.trackName,
+    );
 
     listeningHistoryToSave.push({
       userId,
@@ -388,6 +419,7 @@ export const batchSaveTracks = async (
     }),
     prisma.listeningHistory.createMany({
       data: listeningHistoryToSave,
+      skipDuplicates: true,
     }),
   ];
 
@@ -405,7 +437,16 @@ export const batchSaveTracks = async (
     );
   }
 
-  await prisma.$transaction(transactionOps);
+  const results = await prisma.$transaction(transactionOps);
+
+  const listeningHistoryResult = results[3] as { count: number };
+  const skipped = listeningHistoryToSave.length - listeningHistoryResult.count;
+
+  if (skipped > 0) {
+    console.info(
+      `[lastfm] user=${userId} history: inserted=${listeningHistoryResult.count} skipped=${skipped} (already saved)`,
+    );
+  }
 
   const failed = fuzzyJobs.length
     ? await redisCache.mget(fuzzyJobs.map((id) => `enrichment:failed:${id}`))
@@ -414,7 +455,7 @@ export const batchSaveTracks = async (
   const fuzzyToQueue = fuzzyJobs.filter((_, i) => !failed[i]);
 
   console.error("music brainz jobs:", fuzzyToQueue.length);
-
+  console.log("duration jobs", durationJobs.length);
   await Promise.all([
     lastfmQueue.addBulk(
       durationJobs.map((trackId) => ({
@@ -423,204 +464,5 @@ export const batchSaveTracks = async (
         opts: { jobId: `duration-${trackId}` },
       })),
     ),
-
-    // musicBrainzQueue.addBulk(
-    //   isrcJobs.map((job) => ({
-    //     name: "fetch-isrc",
-    //     data: { trackId: job.id, mbid: job.mbid },
-    //     opts: { jobId: `` },
-    //   })),
-    // ),
-    //   musicBrainzQueue.addBulk(
-    //     fuzzyToQueue.map((trackId) => ({
-    //       name: "fuzzy-search",
-    //       data: { trackId },
-    //       opts: { jobId: `fuzzy-${trackId}` },
-    //     })),
-    //   ),
   ]);
 };
-
-// export const upsertTrackWithHistory = async (
-//   track: LastFmTrack,
-//   userId: string,
-// ): Promise<SavedTrack> => {
-//   const trackIdentifiers = track.trackMbid
-//     ? [{ type: "MBID" as const, value: track.trackMbid }]
-//     : [];
-
-//   const savedTrack = await findOrCreateTrackByIdentifiers({
-//     trackName: track.trackName,
-//     albumName: track.albumName,
-//     durationMs: track.durationMs ?? 0, // lastfm doesnt give duration
-//     platformName: "lastfm",
-//     platformTrackId: track.url, // replacement for platformtrack id, will always point to same track
-//     trackIdentifiers,
-//   });
-
-//   const artistIdentifiers = track.artistMbid
-//     ? [{ type: "MBID" as const, value: track.artistMbid }]
-//     : [];
-
-//   const savedArtists = await findOrCreateArtistByIdentifiers({
-//     artists: [
-//       {
-//         artistName: track.artistName,
-//         platformArtistId: track.artistMbid ?? `pending:${track.artistName}`,
-//         platformName: "last.fm",
-//         artistIdentifiers,
-//       },
-//     ],
-//   });
-
-//   await updateTrackArtists(savedTrack, savedArtists);
-
-//   await saveListeningHistory(
-//     {
-//       platformName: "lastfm",
-//       playedAt: new Date(Number(track.playedAt) * 1000),
-//       source: "lastfm",
-//       uploadedAt: new Date(),
-//     },
-//     savedTrack.id,
-//     userId,
-//   );
-
-//   return {
-//     id: savedTrack.id,
-//     mbid: track.trackMbid,
-//     trackName: savedTrack.trackName,
-//     duration: savedTrack.durationMs,
-//     artistsName: savedArtists.map((artist) => artist.name),
-//   };
-// };
-
-// export const findOrCreateTrackByIdentifiers = async (
-//   input: FindOrCreateTrackInput,
-// ): Promise<Track> => {
-//   const existingPlatformTrack = await findUniquePlatformTrack(input);
-
-//   if (existingPlatformTrack) {
-//     await attachMissingIdentifiers(
-//       existingPlatformTrack.trackId,
-//       input.trackIdentifiers,
-//       input.platformName,
-//     );
-//     return existingPlatformTrack.track;
-//   }
-
-//   if (input.trackIdentifiers.length > 0) {
-//     const matched = await findFirstTrack(input);
-//     if (matched) {
-//       await createPlatformTrack(matched, input);
-
-//       await attachMissingIdentifiers(
-//         matched.id,
-//         input.trackIdentifiers,
-//         input.platformName,
-//       );
-//     }
-//   }
-//   try {
-//     const savedTrack = await createTrack(input);
-
-//     return savedTrack;
-//   } catch (error: any) {
-//     if (error.code === "P2002") {
-//       return await findOrCreateTrackByIdentifiers(input);
-//     }
-//     throw error;
-//   }
-// };
-
-// export const attachMissingIdentifiers = async (
-//   trackId: string,
-//   identifiers: IdentifierInput[],
-//   platformName: string,
-// ): Promise<void> => {
-//   if (identifiers.length === 0) return;
-
-//   const trackIdentifiers = await findTrackIdentifiers(trackId, identifiers);
-
-//   const existingKeys = new Set(
-//     trackIdentifiers.map((e) => `${e.type}:${e.value}`),
-//   );
-
-//   const missing = identifiers.filter(
-//     (i) => !existingKeys.has(`${i.type}:${i.value}`),
-//   );
-
-//   if (missing.length === 0) return;
-
-//   await createTrackIdentifiers(missing, trackId, platformName);
-// };
-
-// export const findOrCreateArtistByIdentifiers = async (input: {
-//   artists: FindOrCreateArtistInput[];
-// }): Promise<Artist[]> => {
-//   const results: Artist[] = [];
-
-//   for (const a of input.artists) {
-//     const existingPlatformArtist = await findPlatformArtist(a);
-
-//     if (existingPlatformArtist) {
-//       await attachMissingArtistIdentifiers(
-//         existingPlatformArtist.artistId,
-//         a.artistIdentifiers,
-//         a.platformName,
-//       );
-//       results.push(existingPlatformArtist.artist);
-//       continue;
-//     }
-
-//     if (a.artistIdentifiers.length > 0) {
-//       const matched = await findFirstArtist(a);
-
-//       if (matched) {
-//         await createPlatformArtist(matched, a);
-//         await attachMissingArtistIdentifiers(
-//           matched.id,
-//           a.artistIdentifiers,
-//           a.platformName,
-//         );
-//         results.push(matched);
-//         continue;
-//       }
-//     }
-
-//     try {
-//       const created = await createArtist(a);
-//       results.push(created);
-//     } catch (error: any) {
-//       if (error.code === "P2002") {
-//         const [retried] = await findOrCreateArtistByIdentifiers({
-//           artists: [a],
-//         });
-//         results.push(retried!);
-//         continue;
-//       }
-//       throw error;
-//     }
-//   }
-
-//   return results;
-// };
-
-// //instead of one db lookup to get them and another to save new ones
-// //, see if i can add new ones to old ones and skip the ones repeating all in one db query
-// const attachMissingArtistIdentifiers = async (
-//   artistId: string,
-//   identifiers: IdentifierInput[],
-//   source: string,
-// ): Promise<void> => {
-//   if (identifiers.length === 0) return;
-
-//   const existing = await findArtistIdentifier(artistId, identifiers);
-
-//   const have = new Set(existing.map((e) => `${e.type}:${e.value}`));
-//   const missing = identifiers.filter((i) => !have.has(`${i.type}:${i.value}`));
-
-//   if (missing.length === 0) return;
-
-//   await createArtistIdentifiers(missing, artistId, source);
-// };
