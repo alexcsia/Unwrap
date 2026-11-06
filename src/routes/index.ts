@@ -6,6 +6,7 @@ import topArtistsRoutes from "./topArtists.routes";
 import exclusionRoutes from "./exclusions.routes";
 import timeListenedRoutes from "./timeListened.routes";
 import userRoutes from "./user.routes";
+import platformRoutes from "./platforms.routes";
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.use("/api/top-tracks", topTracksRoutes);
 router.use("/api/top-artists", topArtistsRoutes);
 router.use("/api/exclusions", exclusionRoutes);
 router.use("/api/time-listened", timeListenedRoutes);
+router.use("/platforms", platformRoutes);
 router.use("/", userRoutes);
 
 export default router;

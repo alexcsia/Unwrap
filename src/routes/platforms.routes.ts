@@ -8,6 +8,8 @@ const router = express.Router();
 
 router.use(generalLimiter);
 
+router.get("/", checkAuth, listPlatformsController);
+
 router.delete(
   "/:platform",
   checkAuth,
