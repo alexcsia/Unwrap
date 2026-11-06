@@ -7,7 +7,7 @@ export const ERROR_MESSAGES = {
   DEFAULT: "Internal server error",
   MISSING_PLATFORM: "Platform parameter is missing",
   UNSUPPORTED_PLATFORM: "Unsupported platform",
-  SPOTIFY_API_ERROR: "Error while fetching Spotify API",
+  SPOTIFY_API_ERROR: "Error while fetching Spotify API, try again later",
   BAD_REQUEST: "The request was invalid or cannot be processed",
   NOT_FOUND: "Requested resource not found",
   CACHE_LOCKED: "Cache locked by another process, please try again later",
