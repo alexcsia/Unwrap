@@ -30,7 +30,7 @@ export type SpotifyUtilsDeps = {
   };
   refreshAccessToken: (user: SpotifyConnection) => Promise<string>;
   getRateLimitWait: () => Promise<number | null>;
-  fetch: typeof fetch; // consistent with the DI pattern
+  fetch: typeof fetch;
 };
 
 const defaultDeps: SpotifyUtilsDeps = {
