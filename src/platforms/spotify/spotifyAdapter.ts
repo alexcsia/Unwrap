@@ -6,7 +6,6 @@ import {
   handleSpotifyCallback,
   initiateOAuth,
   refreshAccessToken,
-  revokeSpotifyToken,
 } from "./auth";
 import { createSpotifyGetHistoryHandler } from "./getHistory";
 import { createSpotifyUploadHandler } from "./upload";
@@ -19,7 +18,6 @@ export const spotifyAdapter: PlatformAdapter<"spotify"> = {
   exchangeCode: exchangeSpotifyCode,
   refreshToken: refreshAccessToken,
   initiateOAuth: initiateOAuth,
-  revokeToken: revokeSpotifyToken,
   disconnect: disconnectSpotify,
   handleCallback: handleSpotifyCallback,
 
