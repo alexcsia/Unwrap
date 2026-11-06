@@ -4,7 +4,7 @@ import type { Platform } from "@/models/connectedPlatforms/types";
 
 export const getHistoryService = async (userId: string, platform: Platform) => {
   const adapter = getPlatformAdapter(platform);
-  if (!adapter || !adapter.getHistory) {
+  if (!adapter.getHistory) {
     throw new ApiError(400, "UNSUPPORTED_PLATFORM", "Unsupported platform");
   }
   return await adapter.getHistory(userId);
