@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const timeListenedSchema = z
+export const dateRangeSchema = z
   .object({
     year: z.coerce.number().int().optional(),
     month: z.coerce.number().int().min(1).max(12).optional(),
