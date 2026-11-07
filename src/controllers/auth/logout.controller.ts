@@ -12,10 +12,16 @@ import { logoutUser } from "@/services/auth/logoutUser.service";
  */
 
 export const logoutController = async (req: Request, res: Response) => {
-  if (!req.user) {
-    throw new ApiError(401, "UNAUTHORIZED", "No active session");
+  const userId = req.user?.id;
+
+  if (!userId) {
+    throw new ApiError(
+      401,
+      "UNAUTHORIZED",
+      "User session not found or expired",
+    );
   }
-  await logoutUser(req.user.id);
+  await logoutUser(userId);
 
   res.clearCookie("refreshToken", {
     httpOnly: true,
