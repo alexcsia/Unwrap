@@ -20,17 +20,19 @@ export const refreshController = async (req: Request, res: Response) => {
     const { accessToken, refreshToken } =
       await rotateRefreshToken(reqRefreshToken);
 
-    res.cookie("refreshToken", refreshToken, {
+    const isProd = process.env.NODE_ENV === "production";
+
+    res.cookie(isProd ? "__Secure-refresh" : "refresh", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isProd,
       sameSite: "strict",
       path: "/api/auth/refresh",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.cookie("accessToken", accessToken, {
+    res.cookie(isProd ? "__Host-session" : "session", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isProd,
       sameSite: "strict",
       path: "/",
       maxAge: 15 * 60 * 1000,
