@@ -12,7 +12,7 @@ import { rotateRefreshToken } from "@/services/auth/rotateRefreshToken.service";
  */
 export const refreshController = async (req: Request, res: Response) => {
   try {
-    const reqRefreshToken = req.cookies.refreshToken;
+    const reqRefreshToken = req.cookies.refresh;
     if (!reqRefreshToken) {
       throw new ApiError(401, "UNAUTHENTICATED", "No refresh token provided");
     }
