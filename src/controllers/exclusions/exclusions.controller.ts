@@ -14,7 +14,7 @@ export const addExclusionController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const { type, targetId } = req.params;
+  const { type, targetId } = req.body;
 
   const userId = req.user?.id;
 
@@ -60,7 +60,7 @@ export const deleteExclusionController = async (
   }
 
   await ExclusionService.removeExclusionService(userId, type!, targetId!);
-  res.status(204).send();
+  res.status(204).json({ message: "Deleted successfully" });
 };
 
 /**

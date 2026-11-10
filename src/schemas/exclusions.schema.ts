@@ -1,6 +1,6 @@
 import { z } from "../openapi/zod";
 
-export const exclusionParamsSchema = z.object({
+export const exclusionSchema = z.object({
   type: z.enum(["artist", "track"]),
   targetId: z.uuid(),
 });
