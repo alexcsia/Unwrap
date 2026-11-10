@@ -36,9 +36,8 @@ export const getLastfmTrackDuration = async (
 
     const data = await res.json();
 
-    if (data.track.duration === 0)
+    if (data.track.duration === undefined || data.track.duration === 0)
       console.warn("duration data is ", data.track.duration);
-    console.log("duration data", data.track.duration);
     return data;
   }
 };

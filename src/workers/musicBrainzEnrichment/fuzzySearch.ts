@@ -2,6 +2,7 @@ import { musicBrainzQueue } from "@/lib/queue";
 import type { MusicBrainzEnrichmentDeps, TrackToEnrich } from "./processor";
 import { mbFetch } from "./processor";
 import { findTrack } from "@/models/track";
+import { UnrecoverableError } from "bullmq";
 
 export type RecordingCandidate = {
   id: string;
@@ -33,6 +34,12 @@ export const fuzzySearchHandler = async (
       { jobId: `isrc-${existingMbid}` },
     );
     return;
+  }
+
+  if (track.durationMs === 0 || track.durationMs === null) {
+    throw new UnrecoverableError(
+      "Track has no duration, skipping fuzzy search",
+    );
   }
 
   const trackToEnrich: TrackToEnrich = {
