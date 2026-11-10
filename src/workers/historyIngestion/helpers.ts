@@ -1,6 +1,6 @@
 import prisma from "@/utils/prisma.util";
-import * as trackModel from "@/models/track.model";
-import * as artistModel from "@/models/artist.model";
+import * as trackModel from "@/models/track/track.model";
+import * as artistModel from "@/models/artist/artist.model";
 import * as listeningHistoryModel from "@/models/listeningHistory.model";
 import * as spotifyUtils from "@/platforms/spotify/utils";
 import { redisCache } from "@/lib/redis";
