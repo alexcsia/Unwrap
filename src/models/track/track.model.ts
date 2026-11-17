@@ -30,9 +30,11 @@ export const findOrCreateTrack = async (
     }
 
     if (track.isrc) {
-      const existingTrack = await prisma.track.findUnique({
+      const existingTrack = await prisma.track.findFirst({
         where: {
-          isrc: track.isrc,
+          identifiers: {
+            some: { type: "ISRC", value: track.isrc },
+          },
         },
       });
 
@@ -202,7 +204,7 @@ export const updateTrackWithDuration = async (
   const track = await prisma.track.update({
     where: { id: trackId },
     data: {
-      durationMs: Number(seconds) * 1000,
+      durationMs: Number(seconds),
     },
     select: {
       identifiers: {
