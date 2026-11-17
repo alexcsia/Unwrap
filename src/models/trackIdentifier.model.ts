@@ -51,3 +51,46 @@ export const needsIdentifierEnrichment = async (
 
   return cached;
 };
+
+export const saveIdentifiers = async (
+  trackId: string,
+  mbid: string,
+  isrcs: string[],
+): Promise<string[]> => {
+  const owners = await prisma.trackIdentifier.findMany({
+    where: {
+      trackId: { not: trackId },
+      OR: [
+        { type: "MBID", value: mbid },
+        ...(isrcs.length
+          ? [{ type: "ISRC" as const, value: { in: isrcs } }]
+          : []),
+      ],
+    },
+    select: { trackId: true, track: true },
+    distinct: ["trackId"],
+  });
+
+  try {
+    await prisma.trackIdentifier.createMany({
+      data: [
+        { trackId, type: "MBID" as const, value: mbid, source: "musicbrainz" },
+        ...isrcs.map((v) => ({
+          trackId,
+          type: "ISRC" as const,
+          value: v,
+          source: "musicbrainz",
+        })),
+      ],
+      skipDuplicates: true,
+    });
+  } catch (err: any) {
+    if (err?.code === "P2003") {
+      console.warn(`Track ${trackId} no longer exists (merged), skipping`);
+      return [];
+    }
+    throw err;
+  }
+
+  return owners.map((o) => o.trackId);
+};

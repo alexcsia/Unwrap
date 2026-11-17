@@ -3,7 +3,7 @@ import { fuzzySearchHandler } from "./fuzzySearch";
 import { fetchTrackISRCs } from "./fetchTrackISRCs";
 import { redisCache } from "@/lib/redis";
 import { pickBestMatch } from "./fuzzySearch";
-import prisma from "@/utils/prisma.util";
+import { saveIdentifiers } from "@/models/trackIdentifier.model";
 import { UnrecoverableError } from "bullmq";
 import type { MusicBrainzJobData } from "@/lib/queue";
 
@@ -22,40 +22,13 @@ export class MusicBrainzRateLimitError extends Error {
   }
 }
 
-export const MUSICBRAINZ_USER_AGENT = "UnwrapApp/1.0.0 (alexiutttt@gmail.com)";
+export const MUSICBRAINZ_USER_AGENT = process.env.MUSICBRAINZ_USER_AGENT;
+if (!MUSICBRAINZ_USER_AGENT)
+  throw new Error("MusicBrainz user agent is missing");
 const MUSICBRAINZ_BASE = "https://musicbrainz.org/ws/2";
 
 const ISRC_CACHE_TTL_SEC = 30 * 24 * 60 * 60; // 30 days
 const NEGATIVE_CACHE_TTL_SEC = 7 * 24 * 60 * 60; // 7 days
-
-export const saveIdentifiers = async (
-  trackId: string,
-  mbid: string,
-  isrcs: string[],
-) => {
-  try {
-    await prisma.trackIdentifier.createMany({
-      data: [
-        { trackId, type: "MBID" as const, value: mbid, source: "musicbrainz" },
-        ...isrcs.map((v) => ({
-          trackId,
-          type: "ISRC" as const,
-          value: v,
-          source: "musicbrainz",
-        })),
-      ],
-      skipDuplicates: true,
-    });
-  } catch (error: any) {
-    if (error?.code === "P2002") {
-      console.warn(
-        `[identifiers] Unique constraint violation for track ${trackId} (merge candidate)`,
-      );
-      return;
-    }
-    throw error;
-  }
-};
 
 export const markSearchFailed = async (trackId: string) => {
   await redisCache.set(
