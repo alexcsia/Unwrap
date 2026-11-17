@@ -1,7 +1,7 @@
-import * as topTracksModel from "@/models/track.model";
+import * as topTracksModel from "@/models/track/track.model";
 import * as exclusionModel from "@/models/exclusion.model";
 import analyticsHelpers from "./shared";
-import type { TopTrackRow } from "@/models/track.model";
+import type { TopTrackRow } from "@/models/track";
 
 export type TopTracksFilters = analyticsHelpers.DateFilters & {
   limit?: number;

@@ -33,10 +33,21 @@ async function main() {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
 
+  const closeHttp = () =>
+    new Promise<void>((resolve) => httpServer.close(() => resolve()));
+
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(`[shutdown] ${signal} received`);
-    httpServer.close();
+
+    setTimeout(() => {
+      console.error("[shutdown] timed out, forcing exit");
+      process.exit(1);
+    }, 10_000).unref();
     try {
+      await closeHttp();
       await Promise.all([redisConnection.quit(), redisCache.quit()]);
     } catch (e) {
       console.error("[shutdown] error closing redis", e);

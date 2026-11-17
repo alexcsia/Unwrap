@@ -25,11 +25,8 @@ export interface PlatformAdapter<P extends Platform> {
     userId: string,
   ) => Promise<{ redirectUrl: string }>;
   revokeToken?: (accessToken: string) => Promise<void>;
-  disconnect?: (userId: string) => Promise<void>;
-  handleCallback: (
-    userId: string,
-    query: Request["query"],
-  ) => Promise<{ success: boolean; message: string }>;
+  disconnect: (userId: string) => Promise<void>;
+  handleCallback: (userId: string, query: Request["query"]) => Promise<void>;
 
   // history
   uploadHistory?: (

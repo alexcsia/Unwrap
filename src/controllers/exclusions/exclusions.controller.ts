@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import * as ExclusionService from "@/services/exclusions/exclusions.service";
-
+import { ApiError } from "@/errors/ApiError";
 /**
  * POST /api/exclusions
  *
@@ -14,9 +14,19 @@ export const addExclusionController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const { type, targetId } = req.params;
+  const { type, targetId } = req.body;
 
-  const result = await ExclusionService.addExclusionService(req.user!.id, {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    throw new ApiError(
+      401,
+      "UNAUTHORIZED",
+      "User session not found or expired",
+    );
+  }
+
+  const result = await ExclusionService.addExclusionService(userId, {
     type: type as "artist" | "track",
     targetId: targetId as string,
   });
@@ -39,8 +49,18 @@ export const deleteExclusionController = async (
 ) => {
   const { type, targetId } = req.params;
 
-  await ExclusionService.removeExclusionService(req.user!.id, type!, targetId!);
-  res.status(204).send();
+  const userId = req.user?.id;
+
+  if (!userId) {
+    throw new ApiError(
+      401,
+      "UNAUTHORIZED",
+      "User session not found or expired",
+    );
+  }
+
+  await ExclusionService.removeExclusionService(userId, type!, targetId!);
+  res.status(204).json({ message: "Deleted successfully" });
 };
 
 /**
@@ -55,6 +75,15 @@ export const getExclusionsController = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const result = await ExclusionService.getExclusionsService(req.user!.id);
+  const userId = req.user?.id;
+
+  if (!userId) {
+    throw new ApiError(
+      401,
+      "UNAUTHORIZED",
+      "User session not found or expired",
+    );
+  }
+  const result = await ExclusionService.getExclusionsService(userId);
   res.json(result);
 };

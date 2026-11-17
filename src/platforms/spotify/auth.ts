@@ -1,10 +1,12 @@
 import { ApiError } from "@/errors/ApiError";
 import prisma from "@/utils/prisma.util";
-import { addConnection } from "@/models/connectedPlatforms/connectedPlatforms.model";
+import {
+  addConnection,
+  disconnectUser,
+} from "@/models/connectedPlatforms/connectedPlatforms.model";
 import type { SpotifyConnection } from "../../models/connectedPlatforms/types";
 import { pollQueue } from "@/lib/queue";
 import type { TokenExchangeResult } from "../types";
-import querystring from "querystring";
 import type { Response, Request } from "express";
 import { consumeOAuthState, createOAuthState } from "../shared/auth";
 
@@ -57,16 +59,12 @@ export const exchangeSpotifyCode = async (
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "<unreadable>");
+    const body = await response.text().catch((err) => console.log(err));
 
-    console.error("[spotify] token exchange failed", {
-      status: response.status,
-      body,
-    });
     throw new ApiError(
       502,
       "SPOTIFY_API_ERROR",
-      "Failed to exchange code for token",
+      `Failed to exchange code for token: ${response.status}, ${body}`,
     );
   }
 
@@ -151,8 +149,7 @@ export const exchangeSpotifyCode = async (
     {
       // repeat: { every: 30 * 60 * 1000 }, //30 min
       repeat: { every: 1 * 60 * 1000 },
-      jobId: `poll:${userId}:spotify`, // deduplicates, safe to call on reconnect
-      delay: Math.floor(Math.random() * 30 * 60 * 1000), // random offset within 30 min window
+      jobId: `poll:${userId}:spotify`,
     },
   );
 
@@ -233,7 +230,7 @@ export const initiateOAuth = async (
   return {
     redirectUrl:
       "https://accounts.spotify.com/authorize?" +
-      querystring.stringify({
+      new URLSearchParams({
         response_type: "code",
         client_id: process.env.SPOTIFY_CLIENT_ID!,
         scope,
@@ -243,29 +240,40 @@ export const initiateOAuth = async (
   };
 };
 
-export const revokeSpotifyToken = async (
-  accessToken: string,
-): Promise<void> => {};
-
-export const disconnectSpotify = async (userId: string): Promise<void> => {};
+export const disconnectSpotify = async (userId: string): Promise<void> => {
+  try {
+    await disconnectUser(userId, "spotify");
+  } catch (err: any) {
+    throw new ApiError(
+      500,
+      "DEFAULT",
+      `Could not delete user spotify tokens: ${err}`,
+    );
+  }
+};
 
 export const handleSpotifyCallback = async (
   userId: string,
   query: Request["query"],
-): Promise<{ success: boolean; message: string }> => {
-  const code = query.code;
-  const state = query.state;
-
+) => {
+  const { code, state, error } = query;
+  if (error) {
+    throw new ApiError(400, "SPOTIFY_API_ERROR", String(error));
+  }
   if (typeof state !== "string" || state.length === 0) {
-    throw new ApiError(400, "BAD_REQUEST", "Invalid or missing OAuth state");
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      `Invalid Spotify OAuth state, ${state}`,
+    );
   }
 
   const ok = await consumeOAuthState(userId, "spotify", state);
   if (!ok) {
     throw new ApiError(
       400,
-      "BAD_REQUEST",
-      "Cached state does not match current user and/or platform",
+      "SPOTIFY_API_ERROR",
+      `Spotify OAuth state mismatch, code: ${code}, state:${state}`,
     );
   }
 
@@ -274,6 +282,4 @@ export const handleSpotifyCallback = async (
   }
 
   await exchangeSpotifyCode(userId, code);
-
-  return { success: true, message: "Spotify connected" };
 };

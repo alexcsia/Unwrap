@@ -10,7 +10,7 @@ export const uploadHistoryService = async (
 ) => {
   const adapter = getPlatformAdapter(platform);
 
-  if (!adapter || !adapter.uploadHistory) {
+  if (!adapter.uploadHistory) {
     throw new ApiError(400, "UNSUPPORTED_PLATFORM", "Unsupported platform");
   }
   await adapter.uploadHistory(filePath, extractedPath, userId);

@@ -27,7 +27,7 @@ export const checkAuth = async (
     return next();
   }
 
-  const accessToken = req.cookies.accessToken;
+  const accessToken = req.cookies.session;
   if (!accessToken) {
     return next(new ApiError(401, "UNAUTHORIZED", "Missing access token"));
   }

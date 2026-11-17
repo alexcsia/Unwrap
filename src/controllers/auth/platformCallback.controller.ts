@@ -8,6 +8,8 @@ export const platformCallbackController = async (
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
+  const FRONTEND = process.env.FRONTEND_URL ?? "http://localhost:5173";
+
   try {
     const { platform } = req.params;
     const userId = req.user?.id;
@@ -18,13 +20,11 @@ export const platformCallbackController = async (
 
     const adapter = getPlatformAdapter(platform as Platform);
     await adapter.handleCallback(userId, req.query);
-
-    res.json({
-      success: true,
-      message: `${platform} account connected successfully.`,
-      platform,
-    });
-  } catch (error) {
-    next(error);
+    return res.redirect(
+      `${FRONTEND}/platforms?connected=${adapter.platformName}`,
+    );
+  } catch (error: any) {
+    console.error("Platform callback failed:", error);
+    return res.redirect(`${FRONTEND}/platforms?error=oauth_failed`);
   }
 };

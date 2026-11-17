@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const SUPPORTED_PLATFORMS = ["spotify", "apple_music"] as const;
+const SUPPORTED_PLATFORMS = ["spotify"] as const;
 
 export const uploadHistorySchema = z.object({
   file: z.object({
@@ -21,4 +21,15 @@ export const uploadHistorySchema = z.object({
 
 export const getHistorySchema = z.object({
   platform: z.enum(SUPPORTED_PLATFORMS),
+});
+
+export const searchEntitiesSchema = z.object({
+  type: z.enum(["artist", "track"]),
+  name: z.string().min(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  cursor: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((val) => val || undefined),
 });

@@ -21,7 +21,7 @@ export const connectPlatformController = async (
 
     const adapter = getPlatformAdapter(platform as Platform);
     const { redirectUrl } = await adapter.initiateOAuth(res, userId);
-    res.redirect(redirectUrl);
+    res.json({ url: redirectUrl });
   } catch (error) {
     next(error);
   }

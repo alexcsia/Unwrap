@@ -1,12 +1,7 @@
 import type { Artist } from "@prisma/client";
 import prisma from "@/utils/prisma.util";
-
-type ArtistInput = {
-  name: string;
-  platformId: string;
-  genres?: string[];
-  imageUrl?: string;
-};
+import type { ArtistInput, FindTopArtistsParams, TopArtistRow } from "./types";
+import type { FindOrCreateArtistInput } from "./types";
 
 export const findOrCreateArtist = async (
   artists: ArtistInput[],
@@ -52,21 +47,30 @@ export const findOrCreateArtist = async (
   }
 };
 
-export type TopArtistRow = {
-  artistId: string;
-  artistName: string;
-  imageUrl: string | null;
-  playCount: bigint;
-  totalDurationMs: bigint;
-  totalCount: bigint;
-};
+export const createArtist = async (artist: FindOrCreateArtistInput) => {
+  const created = await prisma.artist.create({
+    data: {
+      name: artist.artistName,
+      platformArtists: {
+        create: {
+          platformName: artist.platformName,
+          platformArtistId: artist.platformArtistId,
+        },
+      },
+      identifiers:
+        artist.artistIdentifiers.length > 0
+          ? {
+              create: artist.artistIdentifiers.map((i) => ({
+                type: i.type,
+                value: i.value,
+                source: artist.platformName,
+              })),
+            }
+          : undefined,
+    },
+  });
 
-export type FindTopArtistsParams = {
-  userId: string;
-  start: Date;
-  end: Date;
-  limit: number;
-  offset: number;
+  return created;
 };
 
 export const findTopArtists = ({
@@ -102,3 +106,14 @@ export const findTopArtists = ({
     LIMIT ${limit}
     OFFSET ${offset}
   `;
+
+export const findFirstArtist = async (
+  artist: FindOrCreateArtistInput,
+): Promise<Artist | null> => {
+  const matched = await prisma.artist.findFirst({
+    where: {
+      identifiers: { some: { OR: artist.artistIdentifiers } },
+    },
+  });
+  return matched;
+};

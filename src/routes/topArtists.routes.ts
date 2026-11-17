@@ -2,7 +2,7 @@ import { getTopArtistsController } from "@/controllers/analytics/topArtists.cont
 import express from "express";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
-import { topArtistsSchema } from "@/schemas";
+import { dateRangeSchema } from "@/schemas/dateRange.schema";
 import { validateRequest } from "@/middleware/validateRequest.middleware";
 
 const router = express.Router();
@@ -11,7 +11,7 @@ router.use(generalLimiter);
 
 router.get(
   "/",
-  validateRequest(topArtistsSchema, "body"),
+  validateRequest(dateRangeSchema, "body"),
   checkAuth,
   getTopArtistsController,
 );

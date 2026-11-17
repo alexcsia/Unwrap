@@ -7,6 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum IdentifierType {
+  ISRC
+  MBID
+}
+
+model TrackIdentifier {
+id String @id @default(uuid())
+trackId String 
+type IdentifierType
+value String
+source String? 
+createdAt DateTime @default(now())
+
+track Track @relation(fields: [trackId],references: [id], onDelete: Cascade)
+@@unique([type, value])
+@@index([value])
+@@index([trackId,type])
+}
+
+model ArtistIdentifier {
+  id String @id @default(uuid())
+  artistId String
+  type IdentifierType
+  value String
+  source String?
+  createdAt DateTime @default(now())
+
+  artist Artist @relation(fields:[artistId], references: [id], onDelete: Cascade)
+  @@unique([type,value])
+  @@index([value])
+  @@index([artistId,type])
+}
 
 model PlatformTrack {
 
@@ -19,7 +51,6 @@ track Track @relation (fields: [trackId], references: [id])
 @@unique([platformName,platformTrackId])
 
 }
-
 
 model ListeningHistory {
   id              String   @id @default(uuid())
@@ -43,11 +74,12 @@ model Track {
   albumName       String
   durationMs      Int
   metadata        Json?
-  isrc            String? @unique
+  // isrc            String? @unique
 
-platformTracks   PlatformTrack[]
-listeningHistory ListeningHistory[]
+  platformTracks   PlatformTrack[]
+  listeningHistory ListeningHistory[]
   artists          Artist[]           @relation("TrackArtists")
+  identifiers TrackIdentifier[]
 }
 
 model PlatformArtist {
@@ -69,6 +101,7 @@ model Artist {
   genres     String[] @default([])
 
   tracks Track[] @relation("TrackArtists")
+  identifiers ArtistIdentifier[]
   platformArtists PlatformArtist[]
 }
 
@@ -106,10 +139,17 @@ model ConnectedPlatforms {
   id             String   @id @default(uuid())
   userId         String
   platformName   String
-  platformUserId String
-  AccessToken    String
-  RefreshToken   String
-  expiresAt      DateTime
+  platformUserId String?
+
+  //OAuth2
+  accessToken    String?
+  refreshToken   String?
+  expiresAt      DateTime?
+  //Last.fm
+  platformUsername String?
+  sessionKey     String?
+
+
   connectedAt    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

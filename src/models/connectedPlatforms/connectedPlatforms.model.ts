@@ -83,3 +83,21 @@ export const addConnection = async (
     },
   });
 };
+
+export const disconnectUser = async (userId: string, platform: string) => {
+  await prisma.connectedPlatforms.deleteMany({
+    where: { userId: userId, platformName: platform },
+  });
+};
+
+export const getUserConnections = async (userId: string) => {
+  const connections = await prisma.connectedPlatforms.findMany({
+    where: { userId: userId },
+    select: {
+      connectedAt: true,
+      platformName: true,
+    },
+  });
+
+  return connections;
+};

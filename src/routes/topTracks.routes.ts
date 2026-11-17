@@ -3,7 +3,7 @@ import express from "express";
 import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
 import { validateRequest } from "@/middleware/validateRequest.middleware";
-import { topTracksSchema } from "@/schemas";
+import { dateRangeSchema } from "@/schemas/dateRange.schema";
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ router.use(generalLimiter);
 
 router.get(
   "/",
-  validateRequest(topTracksSchema, "body"),
+  validateRequest(dateRangeSchema, "body"),
   checkAuth,
   getTopTracksController,
 );

@@ -17,16 +17,35 @@ async function main() {
     await import("./historyIngestion/historyIngestion.worker");
   const { deleteUserWorker } = await import("./userDeletion/deleteUser.worker");
   const { pollerWorker } = await import("./platformPolling/poller.worker");
+  const { musicBrainzWorker } =
+    await import("./musicBrainzEnrichment/enrichment.worker");
+  const { lastfmWorker } = await import("./lastfmEnrichment/enrichment.worker");
+  const { mergeWorker } = await import("./merger/merger.worker");
+  const { trackSweepWorker, scheduleTrackSweep } =
+    await import("./sweeper/sweeper.worker");
+  const { dedupeWorker } = await import("./dedupeAndEnrich/dedupe.worker");
+  await scheduleTrackSweep();
 
   console.log("[worker] all workers started");
-
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(`[worker] ${signal} received, shutting down`);
+    setTimeout(() => {
+      console.error("[worker] shutdown timed out, forcing exit");
+      process.exit(1);
+    }, 15_000).unref();
     try {
       await Promise.all([
         historyWorker.close(),
         deleteUserWorker.close(),
         pollerWorker.close(),
+        musicBrainzWorker.close(),
+        lastfmWorker.close(),
+        mergeWorker.close(),
+        trackSweepWorker.close(),
+        dedupeWorker.close(),
       ]);
       await Promise.all([redisConnection.quit(), redisCache.quit()]);
     } catch (e) {

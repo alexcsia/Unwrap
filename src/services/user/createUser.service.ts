@@ -1,8 +1,9 @@
-import prisma from "@/utils/prisma.util";
 import { ApiError } from "@/errors/ApiError";
-import Big from "bcrypt";
+import bcrypt from "bcrypt";
 import type { createUserSchema } from "@/schemas/user.schema";
 import z from "zod";
+import { createUser, findUserByEmail } from "@/models/user.model";
+
 /**
  * Service: createUserService
  *
@@ -27,9 +28,7 @@ type CreateUserInput = z.infer<typeof createUserSchema>;
 export const createUserService = async (data: CreateUserInput) => {
   const { email, displayName, password } = data;
 
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  });
+  const existingUser = await findUserByEmail(email);
 
   if (existingUser) {
     throw new ApiError(
@@ -40,21 +39,15 @@ export const createUserService = async (data: CreateUserInput) => {
   }
 
   const saltRounds = 10;
-  const passwordHash = await Big.hash(password, saltRounds);
+  const salt = await bcrypt.genSalt(saltRounds);
+  const passwordHash = await bcrypt.hash(password, salt);
 
-  const user = await prisma.user.create({
-    data: {
-      email,
-      displayName,
-      passwordHash,
-    },
-    select: {
-      id: true,
-      email: true,
-      displayName: true,
-      createdAt: true,
-    },
-  });
-
-  return user;
+  try {
+    const user = await createUser(email, displayName, passwordHash);
+    return user;
+  } catch (err: any) {
+    if (err.code === "P2002")
+      throw new ApiError(409, "CONFLICT", "Email already registered.");
+    throw err;
+  }
 };

@@ -2,6 +2,11 @@ import prisma from "@/utils/prisma.util";
 import type { SpotifyTrackDTO } from "@/platforms/spotify/types";
 import type { Track, Artist } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import type {
+  FindTopTracksParams,
+  TopTrackRow,
+  FindOrCreateTrackInput,
+} from "./types";
 
 export const findOrCreateTrack = async (
   track: SpotifyTrackDTO,
@@ -25,9 +30,11 @@ export const findOrCreateTrack = async (
     }
 
     if (track.isrc) {
-      const existingTrack = await prisma.track.findUnique({
+      const existingTrack = await prisma.track.findFirst({
         where: {
-          isrc: track.isrc,
+          identifiers: {
+            some: { type: "ISRC", value: track.isrc },
+          },
         },
       });
 
@@ -83,26 +90,6 @@ export const connectArtistsAndTrack = async (
   });
 };
 
-export type TopTrackRow = {
-  trackId: string;
-  trackName: string;
-  albumName: string;
-  playCount: bigint;
-  durationMs: bigint;
-  totalCount: bigint;
-  artistNames: string;
-};
-
-export type FindTopTracksParams = {
-  userId: string;
-  start: Date;
-  end: Date;
-  excludedTrackIds: string[];
-  excludedArtistIds: string[];
-  limit: number;
-  offset: number;
-};
-
 export const findTopTracks = ({
   userId,
   start,
@@ -150,3 +137,83 @@ export const findTopTracks = ({
     ORDER BY COUNT(lh.id) DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
+
+export const createTrack = async (input: FindOrCreateTrackInput) => {
+  const savedTrack = await prisma.track.create({
+    data: {
+      trackName: input.trackName,
+      albumName: input.albumName,
+      durationMs: input.durationMs!,
+      metadata: {},
+      platformTracks: {
+        create: {
+          platformName: input.platformName,
+          platformTrackId: input.platformTrackId,
+        },
+      },
+      identifiers: {
+        create: input.trackIdentifiers.map((i) => ({
+          type: i.type,
+          value: i.value,
+          source: input.platformName,
+        })),
+      },
+    },
+  });
+  return savedTrack;
+};
+
+export const findFirstTrack = async (
+  input: FindOrCreateTrackInput,
+): Promise<Track | null> => {
+  const matched = await prisma.track.findFirst({
+    where: {
+      identifiers: { some: { OR: input.trackIdentifiers } },
+    },
+  });
+  return matched;
+};
+
+export const updateTrackArtists = async (
+  savedTrack: Track,
+  savedArtists: Artist[],
+) => {
+  await prisma.track.update({
+    where: { id: savedTrack.id },
+    data: {
+      artists: {
+        set: savedArtists.map((a) => ({ id: a.id })),
+      },
+    },
+  });
+};
+
+export const findTrack = (id: string) =>
+  prisma.track.findUnique({
+    where: { id },
+    include: {
+      artists: true,
+      identifiers: true,
+    },
+  });
+
+export const updateTrackWithDuration = async (
+  trackId: string,
+  seconds: string,
+) => {
+  const track = await prisma.track.update({
+    where: { id: trackId },
+    data: {
+      durationMs: Number(seconds),
+    },
+    select: {
+      identifiers: {
+        where: { type: "MBID" },
+        select: { value: true },
+        take: 1,
+      },
+    },
+  });
+
+  return track;
+};

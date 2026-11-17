@@ -3,9 +3,9 @@ import * as spotifyUtils from "@/platforms/spotify/utils";
 import {
   findOrCreateTrack,
   connectArtistsAndTrack,
-} from "@/models/track.model";
+} from "@/models/track/track.model";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
-import { findOrCreateArtist } from "@/models/artist.model";
+import { findOrCreateArtist } from "@/models/artist/artist.model";
 import type { Artist, Track, ListeningHistory } from "@prisma/client";
 import type {
   SpotifyArtistDTO,
@@ -18,7 +18,6 @@ import type { SpotifyHistoryItem } from "@/platforms/spotify/utils";
 export const createSpotifyGetHistoryHandler = (
   utils: {
     fetchRecentTracks: typeof spotifyUtils.fetchRecentTracks;
-    getSpotifyArtistIds: typeof spotifyUtils.getSpotifyArtistIds;
   } = spotifyUtils,
 ) => {
   return async (
@@ -29,29 +28,17 @@ export const createSpotifyGetHistoryHandler = (
     const userSpotify = await getPlatformConnection(userId, "spotify");
     const history = await utils.fetchRecentTracks(userSpotify);
 
-    const results: SavedEntry[] = [];
+    const persisted = await Promise.all(
+      history.map((item) =>
+        persistHistoryItem(item, item.platformName, userSpotify.userId),
+      ),
+    );
 
-    for (const item of history) {
-      const entry = await persistHistoryItem(
-        item,
-        item.platformName,
-        userSpotify.userId,
-      );
-
-      if (
-        entry.savedArtistEntry &&
-        entry.savedTrackEntry &&
-        entry.savedLHEntry
-      ) {
-        results.push(entry);
-      }
-    }
-
-    console.log(`Saved ${results.length} new entries to the database.`);
+    console.log(`Saved ${persisted.length} new entries to the database.`);
 
     return {
-      pagination: buildPagination(limit, offset, results.length),
-      history: results.map(formatHistoryEntry),
+      pagination: buildPagination(limit, offset, persisted.length),
+      history: persisted.map(formatHistoryEntry),
     };
   };
 };

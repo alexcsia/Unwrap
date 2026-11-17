@@ -2,13 +2,10 @@ import { expect, test, describe } from "bun:test";
 import {
   loginSchema,
   uploadHistorySchema,
-  topTracksSchema,
-  topArtistsSchema,
-  timeListenedSchema,
+  dateRangeSchema,
   createUserSchema,
-  exclusionParamsSchema,
+  exclusionSchema,
   getHistorySchema,
-  OAuthCallbackSchema,
 } from "@/schemas";
 
 import type { ZodSchema } from "zod";
@@ -83,9 +80,9 @@ const testAnalyticsSchemas = <T extends { limit?: any; offset?: any }>(
   });
 };
 
-testAnalyticsSchemas(topArtistsSchema, "top artists schema");
-testAnalyticsSchemas(topTracksSchema, "top tracks schema");
-testAnalyticsSchemas(timeListenedSchema, "time listened schema");
+testAnalyticsSchemas(dateRangeSchema, "top artists schema");
+testAnalyticsSchemas(dateRangeSchema, "top tracks schema");
+testAnalyticsSchemas(dateRangeSchema, "time listened schema");
 
 describe("Auth Schemas", () => {
   describe("createUserSchema", () => {
@@ -121,17 +118,6 @@ describe("Auth Schemas", () => {
     test("should pass on clean credentials formatting", () => {
       const payload = { email: "user@unwrap.com", password: "strongpassword" };
       expect(loginSchema.safeParse(payload).success).toBe(true);
-    });
-  });
-
-  describe("OAuthCallbackSchema", () => {
-    test("should pass when both optional query params are valid strings", () => {
-      const payload = { code: "AQB123...", state: "xyz987" };
-      expect(OAuthCallbackSchema.safeParse(payload).success).toBe(true);
-    });
-
-    test("should pass when query params are completely empty", () => {
-      expect(OAuthCallbackSchema.safeParse({}).success).toBe(true);
     });
   });
 });
@@ -194,9 +180,6 @@ describe("History Schemas", () => {
       expect(getHistorySchema.safeParse({ platform: "spotify" }).success).toBe(
         true,
       );
-      expect(
-        getHistorySchema.safeParse({ platform: "apple_music" }).success,
-      ).toBe(true);
     });
   });
 });
@@ -204,23 +187,29 @@ describe("History Schemas", () => {
 describe("Exclusion Schemas", () => {
   describe("exclusionParamsSchema", () => {
     test("should pass for a valid artist filtering scope", () => {
-      const payload = { type: "artist", targetId: "4gzpz0Cg6wGB98gXz6S79A" };
-      expect(exclusionParamsSchema.safeParse(payload).success).toBe(true);
+      const payload = {
+        type: "artist",
+        targetId: "396107f5-1929-4a66-804b-865df6e826ac",
+      };
+      expect(exclusionSchema.safeParse(payload).success).toBe(true);
     });
 
     test("should pass for a valid track filtering scope", () => {
-      const payload = { type: "track", targetId: "12345" };
-      expect(exclusionParamsSchema.safeParse(payload).success).toBe(true);
+      const payload = {
+        type: "track",
+        targetId: "396107f5-1929-4a66-804b-865df6e826ac",
+      };
+      expect(exclusionSchema.safeParse(payload).success).toBe(true);
     });
 
     test("should fail if type is neither artist nor track", () => {
       const payload = { type: "album", targetId: "123" };
-      expect(exclusionParamsSchema.safeParse(payload).success).toBe(false);
+      expect(exclusionSchema.safeParse(payload).success).toBe(false);
     });
 
     test("should fail if targetId is an empty string", () => {
       const payload = { type: "artist", targetId: "" };
-      expect(exclusionParamsSchema.safeParse(payload).success).toBe(false);
+      expect(exclusionSchema.safeParse(payload).success).toBe(false);
     });
   });
 });

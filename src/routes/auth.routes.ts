@@ -6,7 +6,7 @@ import express from "express";
 import { authLimiter } from "@/middleware/rateLimit.middleware";
 import { connectPlatformController } from "@/controllers/auth/connectPlatform.controller";
 import { validateRequest } from "@/middleware/validateRequest.middleware";
-import { loginSchema, OAuthCallbackSchema } from "@/schemas";
+import { loginSchema } from "@/schemas";
 import { validatePlatform } from "@/middleware/platform.middleware";
 import { platformCallbackController } from "@/controllers/auth/platformCallback.controller";
 
@@ -20,12 +20,7 @@ router.get(
   connectPlatformController,
 );
 
-router.get(
-  "/callback/:platform",
-  checkAuth,
-  validateRequest(OAuthCallbackSchema, "body"),
-  platformCallbackController,
-);
+router.get("/callback/:platform", checkAuth, platformCallbackController);
 
 router.get("/refresh", refreshController);
 
