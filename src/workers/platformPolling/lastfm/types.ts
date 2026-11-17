@@ -1,5 +1,6 @@
 import { redisCache } from "@/lib/redis";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
+import { getUserRecentTracks } from "@/platforms/lastfm/getUserRecent";
 
 export interface RawLastFmTrack {
   name: string;
@@ -38,7 +39,7 @@ export type lastfmPollerDeps = {
     get: typeof redisCache.get;
     del: typeof redisCache.del;
   };
-
+  getUserRecentTracks: typeof getUserRecentTracks;
   saveListeningHistory: typeof saveListeningHistory;
   transaction: <T>(fn: () => Promise<T>) => Promise<T>;
 };
