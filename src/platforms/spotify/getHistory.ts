@@ -3,9 +3,9 @@ import * as spotifyUtils from "@/platforms/spotify/utils";
 import {
   findOrCreateTrack,
   connectArtistsAndTrack,
-} from "@/models/track.model";
+} from "@/models/track/track.model";
 import { saveListeningHistory } from "@/models/listeningHistory.model";
-import { findOrCreateArtist } from "@/models/artist.model";
+import { findOrCreateArtist } from "@/models/artist/artist.model";
 import type { Artist, Track, ListeningHistory } from "@prisma/client";
 import type {
   SpotifyArtistDTO,
@@ -18,7 +18,6 @@ import type { SpotifyHistoryItem } from "@/platforms/spotify/utils";
 export const createSpotifyGetHistoryHandler = (
   utils: {
     fetchRecentTracks: typeof spotifyUtils.fetchRecentTracks;
-    getSpotifyArtistIds: typeof spotifyUtils.getSpotifyArtistIds;
   } = spotifyUtils,
 ) => {
   return async (
@@ -35,16 +34,11 @@ export const createSpotifyGetHistoryHandler = (
       ),
     );
 
-    const results = persisted.filter(
-      (entry) =>
-        entry.savedArtistEntry && entry.savedTrackEntry && entry.savedLHEntry,
-    );
-
-    console.log(`Saved ${results.length} new entries to the database.`);
+    console.log(`Saved ${persisted.length} new entries to the database.`);
 
     return {
-      pagination: buildPagination(limit, offset, results.length),
-      history: results.map(formatHistoryEntry),
+      pagination: buildPagination(limit, offset, persisted.length),
+      history: persisted.map(formatHistoryEntry),
     };
   };
 };
