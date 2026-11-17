@@ -9,8 +9,9 @@ import { checkAuth } from "@/middleware/auth.middleware";
 import { generalLimiter } from "@/middleware/rateLimit.middleware";
 import { createIdempotencyMiddleware } from "@/middleware/idempotency/idempotency.middleware";
 import { validateRequest } from "@/middleware/validateRequest.middleware";
-import { getHistorySchema } from "@/schemas";
+import { getHistorySchema, searchEntitiesSchema } from "@/schemas";
 import { validateZipUpload } from "@/middleware/upload.middleware";
+import { searchEntityController } from "@/controllers/listening-history/searchEntity.controller";
 
 const router = express.Router();
 const upload = multer({
@@ -35,6 +36,13 @@ router.post(
   createIdempotencyMiddleware(),
   prepareUploadPaths,
   uploadHistoryController,
+);
+
+router.get(
+  "/search",
+  checkAuth,
+  validateRequest(searchEntitiesSchema, "query"),
+  searchEntityController,
 );
 
 export default router;
