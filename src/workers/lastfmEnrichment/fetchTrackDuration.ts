@@ -30,9 +30,9 @@ export const getLastfmTrackDuration = async (
   } else {
     const artistsName = track.artists[0]?.name;
 
-    const res =
-      await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${deps.LASTFM_API_KEY}
-      &artist=${artistsName}&track=${track.trackName}&format=json`);
+    const res = await fetch(
+      `https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${deps.LASTFM_API_KEY}&artist=${encodeURIComponent(artistsName!)}&track=${encodeURIComponent(track.trackName)}&format=json`,
+    );
 
     const data = await res.json();
 
