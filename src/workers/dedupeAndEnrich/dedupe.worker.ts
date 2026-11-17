@@ -12,15 +12,15 @@ export const dedupeWorker = new Worker(
 );
 
 dedupeWorker.on("completed", (job) => {
-  console.log(`[Merge] Job ${job.id} completed`);
+  console.log(`[Dedupe] Job ${job.id} completed`);
 });
 
 dedupeWorker.on("failed", (job, err) => {
-  console.error(`[Merge] Job ${job?.id} failed: ${err.message}`);
+  console.error(`[Dedupe] Job ${job?.id} failed: ${err.message}`);
 });
 
 dedupeWorker.on("error", (err) => {
-  console.error("[Merge] Worker error:", err);
+  console.error("[Dedupe] Worker error:", err);
 });
 
 export const enqueueDedupe = (userId: string) =>

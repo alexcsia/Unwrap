@@ -9,6 +9,8 @@ import type { lastfmPollerDeps, LastFmTrack } from "./types";
 import { toLastfmTrack } from "./utils";
 import { getUserRecentTracks } from "@/platforms/lastfm/getUserRecent";
 import { Prisma } from "@prisma/client";
+import { enqueueDedupe } from "@/workers/dedupeAndEnrich/dedupe.worker";
+import fs from "node:fs/promises";
 
 const defaultPollerDeps: lastfmPollerDeps = {
   cache: {
@@ -16,7 +18,7 @@ const defaultPollerDeps: lastfmPollerDeps = {
     get: redisCache.get.bind(redisCache),
     del: redisCache.del.bind(redisCache),
   },
-
+  getUserRecentTracks: getUserRecentTracks,
   saveListeningHistory: saveListeningHistory,
   transaction: (fn) => prisma.$transaction(fn) as any,
 };
@@ -31,7 +33,7 @@ export const createLastfmPoller = (
       const cursorKey = `lastfm-cursor:${connection.userId}`;
       const cursor = await deps.cache.get(cursorKey);
 
-      const data = await getUserRecentTracks(
+      const data = await deps.getUserRecentTracks(
         connection.platformUsername,
         cursor ?? null,
       );
@@ -53,9 +55,6 @@ export const createLastfmPoller = (
       const uniqueArtitsUrls = artists
         .map((a) => a[0]?.split("/_/")[0])
         .filter((url): url is string => !!url);
-
-      // console.log("artists:", artists);
-      // console.log("url of artists:", uniqueArtitsUrls);
 
       const knownPlatformTracks = await prisma.platformTrack.findMany({
         where: {
@@ -153,6 +152,8 @@ export const createLastfmPoller = (
         knownArtistMap,
         connection.userId,
       );
+
+      await enqueueDedupe(connection.userId);
 
       const latestPlayedAt = tracks[0]?.playedAt;
       if (latestPlayedAt) {

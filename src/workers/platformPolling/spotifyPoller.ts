@@ -7,6 +7,8 @@ import prisma from "@/utils/prisma.util";
 import type { SpotifyConnection } from "@/models/connectedPlatforms/types";
 import { IdentifierType } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import { enqueueDedupe } from "../dedupeAndEnrich/dedupe.worker";
+import fs from "node:fs/promises";
 
 export type SpotifyPollerDeps = {
   fetchRecentTracks: typeof fetchRecentTracks;
@@ -113,6 +115,8 @@ export const createSpotifyPoller = (deps = defaultPollerDeps) =>
         artistsSaved,
         connection.userId,
       );
+
+      await enqueueDedupe(connection.userId);
     } catch (err: any) {
       console.log(err);
     }
