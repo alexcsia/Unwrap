@@ -68,7 +68,9 @@ export const createSpotifyUtils = (deps: SpotifyUtilsDeps = defaultDeps) => {
         userId: user.userId,
         platformTrackId: item.track.id,
         platformName: "spotify",
-        playedAt: new Date(item.played_at),
+        playedAt: new Date(
+          new Date(item.played_at).getTime() - item.track.duration_ms,
+        ),
         trackName: item.track.name,
         albumName: item.track.album.name,
         durationMs: item.track.duration_ms,
