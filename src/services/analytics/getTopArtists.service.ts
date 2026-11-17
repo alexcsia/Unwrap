@@ -1,5 +1,5 @@
-import * as topArtistsModel from "@/models/artist.model";
-import type { TopArtistRow } from "@/models/artist.model";
+import * as topArtistsModel from "@/models/artist/artist.model";
+import type { TopArtistRow } from "@/models/artist";
 import analyticsHelpers from "./shared";
 
 export type TopArtistsFilters = analyticsHelpers.DateFilters & {
