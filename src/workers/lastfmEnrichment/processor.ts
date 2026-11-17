@@ -5,6 +5,8 @@ import { updateTrackWithDuration } from "@/models/track";
 import { needsIdentifierEnrichment } from "@/models/trackIdentifier.model";
 import { musicBrainzQueue } from "@/lib/queue";
 import { findTrack } from "@/models/track";
+import prisma from "@/utils/prisma.util";
+import type { Track } from "@prisma/client";
 const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
 
 if (!LASTFM_API_KEY) {
@@ -37,15 +39,21 @@ export type LastfmJobData = {
 export const createLastfmProcessor = (deps = defaultDeps) => {
   return async (job: Job<LastfmJobData>) => {
     const { trackId } = job.data;
+    let seconds: any;
 
     const track = await findTrack(trackId);
     if (!track) return;
+
     const res = await getLastfmTrackDuration(track, deps);
 
-    const seconds = res.track.duration;
-    if (!seconds) return;
+    seconds = res.track.duration;
+    if (!seconds || seconds === "0") {
+      seconds = await fuzzyMatchDuration(track);
 
-    const updated = await updateTrackWithDuration(trackId, res.track.duration);
+      if (!seconds) return;
+    }
+
+    const updated = await updateTrackWithDuration(trackId, seconds);
 
     if (!(await needsIdentifierEnrichment(job.data.trackId))) return;
 
@@ -68,3 +76,37 @@ export const createLastfmProcessor = (deps = defaultDeps) => {
 };
 
 export const lastfmProcessor = createLastfmProcessor();
+
+export const fuzzyMatchDuration = async (
+  track: Track & { artists?: { name: string }[] },
+) => {
+  const artistNames = track.artists?.map((a) => a.name) ?? [];
+
+  const match = await prisma.track.findFirst({
+    where: {
+      trackName: {
+        equals: track.trackName,
+        mode: "insensitive",
+      },
+      albumName: {
+        equals: track.albumName,
+        mode: "insensitive",
+      },
+      artists: {
+        some: {
+          name: {
+            in: artistNames,
+            mode: "insensitive",
+          },
+        },
+      },
+      durationMs: {
+        not: undefined,
+        gt: 0,
+      },
+    },
+    select: { durationMs: true },
+  });
+
+  return match?.durationMs ? match.durationMs.toString() : undefined;
+};
