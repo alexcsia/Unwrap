@@ -20,6 +20,11 @@ async function main() {
   const { musicBrainzWorker } =
     await import("./musicBrainzEnrichment/enrichment.worker");
   const { lastfmWorker } = await import("./lastfmEnrichment/enrichment.worker");
+  const { mergeWorker } = await import("./merger/merger.worker");
+  const { trackSweepWorker, scheduleTrackSweep } =
+    await import("./sweeper/sweeper.worker");
+  const { dedupeWorker } = await import("./dedupeAndEnrich/dedupe.worker");
+  await scheduleTrackSweep();
 
   console.log("[worker] all workers started");
   let shuttingDown = false;
@@ -38,6 +43,9 @@ async function main() {
         pollerWorker.close(),
         musicBrainzWorker.close(),
         lastfmWorker.close(),
+        mergeWorker.close(),
+        trackSweepWorker.close(),
+        dedupeWorker.close(),
       ]);
       await Promise.all([redisConnection.quit(), redisCache.quit()]);
     } catch (e) {
