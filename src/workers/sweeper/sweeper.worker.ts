@@ -3,6 +3,8 @@ import prisma from "@/utils/prisma.util";
 import { redisConnection } from "@/lib/redis";
 import { sweepQueue } from "@/lib/queue";
 import { enqueueMerges } from "../merger/processor";
+import { fuzzyMatchDuration } from "../lastfmEnrichment/processor";
+import { updateTrackWithDuration } from "@/models/track";
 
 const DURATION_TOLERANCE_MS = 50_000;
 const MAX_GROUPS_PER_RUN = 500;
@@ -65,9 +67,25 @@ export const enqueueNameMatchedMerges = async () => {
   );
 };
 
+export const enrichMissingDurationTracks = async () => {
+  const tracks = await prisma.track.findMany({
+    where: {
+      durationMs: 0,
+    },
+    include: { artists: true },
+  });
+
+  for (const track of tracks) {
+    const seconds = await fuzzyMatchDuration(track);
+    if (!seconds) return;
+    const updated = await updateTrackWithDuration(track.id, seconds);
+  }
+};
+
 export const trackSweepWorker = new Worker(
   sweepQueue.name,
   async () => {
+    await enrichMissingDurationTracks();
     await enqueueNameMatchedMerges();
   },
   { connection: redisConnection, concurrency: 1 },
