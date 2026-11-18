@@ -5,6 +5,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import routes from "./routes";
+import swaggerUi from "swagger-ui-express";
+import { generateOpenAPISpec } from "./openapi";
 
 export function createApp() {
   const app = express();
@@ -24,6 +26,9 @@ export function createApp() {
 
   app.use(express.json({ limit: "40kb" }));
   app.use(express.urlencoded({ limit: "40kb", extended: true }));
+
+  const swaggerSpec = generateOpenAPISpec();
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   app.use(routes);
 
