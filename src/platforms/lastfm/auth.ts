@@ -35,7 +35,6 @@ export const handleLastfmCallback = async (
     `poll:${userId}`,
     { userId: userId, platform: "lastfm" },
     {
-      // repeat: { every: 30 * 60 * 1000 }, //30 min
       repeat: { every: intervalMs },
       jobId: `poll:${userId}:lastfm`, // deduplicates, safe to call on reconnect
       // delay: Math.floor(Math.random() * 30 * 60 * 1000), // random offset within 30 min window
