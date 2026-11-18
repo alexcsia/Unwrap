@@ -28,5 +28,4 @@ COPY --from=build /app/package.json ./package.json
 
 EXPOSE 8080
 
-# Default: API
-CMD ["bun", "dist/app.js"]
+CMD ["bun", "dist/server.js"]
