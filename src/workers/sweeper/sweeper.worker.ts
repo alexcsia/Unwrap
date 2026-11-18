@@ -6,6 +6,8 @@ import { enqueueMerges } from "../merger/processor";
 import { fuzzyMatchDuration } from "../lastfmEnrichment/processor";
 import { updateTrackWithDuration } from "@/models/track";
 
+let REPEAT;
+const NODE_ENV = process.env.NODE_ENV;
 const DURATION_TOLERANCE_MS = 50_000;
 const MAX_GROUPS_PER_RUN = 500;
 const norm = (s: string) => s.trim().toLowerCase();
@@ -98,9 +100,12 @@ trackSweepWorker.on("error", (err) =>
   console.error("[sweep] worker error", err),
 );
 
+if (NODE_ENV !== "production") REPEAT = 0.5 * 60 * 1000;
+else REPEAT = 30 * 60 * 1000;
+
 export const scheduleTrackSweep = () =>
   sweepQueue.upsertJobScheduler(
     "name-match-sweep",
-    { every: 0.5 * 60 * 1000 }, // set to 30 min
+    { every: REPEAT },
     { name: "sweep" },
   );

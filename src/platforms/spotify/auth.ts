@@ -10,6 +10,9 @@ import type { TokenExchangeResult } from "../types";
 import type { Response, Request } from "express";
 import { consumeOAuthState, createOAuthState } from "../shared/auth";
 
+const NODE_ENV = process.env.NODE_ENV;
+let REPEAT;
+
 /**
  * Service: exchangeSpotifyCode
  *
@@ -143,12 +146,14 @@ export const exchangeSpotifyCode = async (
     },
   });
 
+  if (NODE_ENV !== "production") REPEAT = 0.5 * 60 * 1000;
+  else REPEAT = 30 * 60 * 1000;
+
   await pollQueue.add(
     `poll:${userConnectedPlatform.userId}`,
     { userId: userConnectedPlatform.userId, platform: "spotify" },
     {
-      // repeat: { every: 30 * 60 * 1000 }, //30 min
-      repeat: { every: 1 * 60 * 1000 },
+      repeat: { every: REPEAT },
       jobId: `poll:${userId}:spotify`,
     },
   );
